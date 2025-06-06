@@ -1,4 +1,4 @@
-.PHONY: mod,run,cover,clean,debug,test,release,stop,swag
+.PHONY: mod,run,cover,clean,debug,test,release,stop,swag,wire
 
 # 自定义echo，避免颜色无法输出
 # echo -e 参数有终端不识别
@@ -37,7 +37,7 @@ mod:
 	@go mod tidy -v
 	@go mod download
 
-debug: clean cmd/main.go go.sum go.mod
+debug: clean cmd/main.go go.sum go.mod wire
 	@$(ECHO) "================================\n"
 	@$(ECHO) "   Building godemo Service       \n"
 	@$(ECHO) "================================\n"
@@ -46,7 +46,7 @@ debug: clean cmd/main.go go.sum go.mod
 	@go build -o $(APP_PATH)/bin/$(BINARY_NAME) $(CMD_FILE)
 	@$(ECHO) "$(SUCCESS)[debug] $(BINARY_NAME) build success$(RESET)\n"
 
-test: clean cmd/main.go go.sum go.mod
+test: clean cmd/main.go go.sum go.mod wire
 	@$(ECHO) "================================\n"
 	@$(ECHO) "   Building godemo Service       \n"
 	@$(ECHO) "================================\n"
@@ -55,7 +55,7 @@ test: clean cmd/main.go go.sum go.mod
 	@go build -o $(APP_PATH)/bin/$(BINARY_NAME) $(CMD_FILE)
 	@$(ECHO) "$(SUCCESS)[test] $(BINARY_NAME) build success$(RESET)\n"
 
-release: clean cmd/main.go go.sum go.mod
+release: clean cmd/main.go go.sum go.mod wire
 	@$(ECHO) "================================\n"
 	@$(ECHO) "   Building godemo Service       \n"
 	@$(ECHO) "================================\n"
@@ -92,3 +92,7 @@ swag:
 cover:
 	@go vet $(APP_PATH)
 	@go test -coverpkg="./..." -cover $(APP_PATH)/... -gcflags='all=-N -l'
+
+wire:
+	@cd internal/wire && rm -rf wire_gen.go && wire
+	@$(ECHO) "$(SUCCESS)wire generate success$(RESET)\n"

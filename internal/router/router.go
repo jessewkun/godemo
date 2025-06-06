@@ -3,15 +3,16 @@ package router
 import (
 	"net/http"
 
+	"godemo/internal/wire"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jessewkun/gocommon/cache"
 	"github.com/jessewkun/gocommon/db"
 	"github.com/jessewkun/gocommon/middleware"
 	"github.com/jessewkun/gocommon/response"
 
-	ginSwagger "github.com/swaggo/gin-swagger"
-
 	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // 跨域配置
@@ -67,11 +68,19 @@ func registerSystemRoutes(r *gin.Engine) {
 }
 
 func registerAPIRoutes(r *gin.Engine) {
+	// 使用 wire 初始化依赖
+	userHandler, err := wire.InitializeAPI()
+	if err != nil {
+		panic(err)
+	}
+
 	v1 := r.Group("/api/v1")
 	{
-		// 测试路由
-		v1.GET("/test", func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"message": "test"})
-		})
+		// 用户相关路由
+		user := v1.Group("/users")
+		{
+			user.POST("", userHandler.Create) // 创建用户
+			user.GET("", userHandler.List)    // 获取用户列表
+		}
 	}
 }
