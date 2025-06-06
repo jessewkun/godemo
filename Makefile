@@ -94,5 +94,8 @@ cover:
 	@go test -coverpkg="./..." -cover $(APP_PATH)/... -gcflags='all=-N -l'
 
 wire:
+	@$(ECHO) "================================\n"
+	@$(ECHO) "   Wire generate godemo Service       \n"
+	@$(ECHO) "================================\n"
 	@cd internal/wire && rm -rf wire_gen.go && wire
 	@$(ECHO) "$(SUCCESS)wire generate success$(RESET)\n"
