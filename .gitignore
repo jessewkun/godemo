@@ -1,0 +1,7 @@
+nohup.out
+.DS_Store
+logs/*
+config/config.toml
+bin/*
+docs/*
+internal/wire/wire_gen.go
