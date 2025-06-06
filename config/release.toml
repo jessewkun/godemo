@@ -1,0 +1,45 @@
+mode = "release"
+port = ":8001"
+domain = "http://localhost:8001"
+
+[debug]
+    module = ["mysql"] # 可选值 mysql,http, + 自定义业务模块
+    mode = "console" # 可选值 log, console, 默认 console
+
+[log]
+    path = "./logs/log.log"
+    closed = false
+    max_size = 10240
+    max_age = 7
+    max_backup = 10
+    transparent_parameter = ["trace_id", "span_id", "parent_span_id", "span_kind", "span_name", "span_status", "span_start_time", "span_end_time", "span_duration", "user_id"]
+    alarm_level = "error"
+
+[alarm]
+    bark_ids = []
+
+[http]
+    transparent_parameter = ["trace_id"]
+    is_trace_log = true
+
+[mysql]
+    [mysql.main]
+        dsn = [
+            "root:@tcp(127.0.0.1:3306)/test?charset=utf8&parseTime=True&loc=Local",
+        ]
+        max_conn = 50           # 最大连接数
+        max_idle_conn = 25      # 最大空闲连接数
+        conn_max_life = 3600    # 连接最长持续时间， 默认1小时，单位秒
+        slow_threshold = 500    # 慢查询阈值，单位毫秒
+        ignore_record_not_found_error = true # 是否忽略记录不存在的错误
+        is_log = true           # 是否记录日志  日志级别为info
+
+[redis]
+    [redis.main]
+        addrs = [
+            "127.0.0.1:6379"
+        ]
+        password = ""
+        db = 0
+        is_log = true           # 是否记录日志
+
