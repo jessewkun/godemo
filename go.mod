@@ -7,7 +7,7 @@ require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/wire v0.6.0
-	github.com/jessewkun/gocommon v0.0.0-20250606102518-c0993aa16d56
+	github.com/jessewkun/gocommon v0.0.0-20250616082427-5d2730301b04
 	github.com/spf13/viper v1.20.1
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0

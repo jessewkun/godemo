@@ -41,5 +41,6 @@ domain = "http://localhost:8001"
         ]
         password = ""
         db = 0
+        slow_threshold = 500    # 慢查询阈值，单位毫秒
         is_log = true           # 是否记录日志
 

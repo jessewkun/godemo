@@ -45,15 +45,30 @@ func init() {
 	})
 
 	// 初始化各个组件
-	initComponents()
+	err = initComponents()
+	if err != nil {
+		panic(fmt.Errorf("init components error: %s", err))
+	}
 }
 
 // initComponents 初始化各个组件
 func initComponents() error {
-	logger.InitLogger(baseConfig.Log)
-	db.InitMysql(baseConfig.Mysql)
-	cache.InitRedis(baseConfig.Redis)
-	alarm.InitBark(baseConfig.Alarm)
+	err := logger.InitLogger(baseConfig.Log)
+	if err != nil {
+		return fmt.Errorf("init logger error: %s", err)
+	}
+	err = db.InitMysql(baseConfig.Mysql)
+	if err != nil {
+		return fmt.Errorf("init mysql error: %s", err)
+	}
+	err = cache.InitRedis(baseConfig.Redis)
+	if err != nil {
+		return fmt.Errorf("init redis error: %s", err)
+	}
+	err = alarm.InitBark(baseConfig.Alarm)
+	if err != nil {
+		return fmt.Errorf("init alarm error: %s", err)
+	}
 	return nil
 }
 
@@ -82,11 +97,11 @@ func gracefulExit(srv *http.Server) {
 	sig := <-exit
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	logger.Info(ctx, "main", "Received signal: %v. Shutting down server...", sig)
+	logger.Info(ctx, "MAIN", "Received signal: %v. Shutting down server...", sig)
 
 	if err := srv.Shutdown(ctx); err != nil {
 		logger.ErrorWithMsg(ctx, "MAIN", "Server shutdown failed: %v", err)
 	}
-	logger.Info(ctx, "main", "Server gracefully shutdown")
+	logger.Info(ctx, "MAIN", "Server gracefully shutdown")
 	fmt.Println("Server gracefully shutdown")
 }
