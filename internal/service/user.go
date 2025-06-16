@@ -48,7 +48,7 @@ func (s *UserService) Create(ctx context.Context, req *dto.UserCreateRequest) (*
 		ID:       user.ID,
 		Username: user.Username,
 		Email:    user.Email,
-		CreateAt: user.CreatedAt.Format(time.RFC3339),
+		CreateAt: user.CreatedAt.String(),
 	}, nil
 }
 
@@ -67,7 +67,7 @@ func (s *UserService) List(ctx context.Context, req *dto.UserListRequest) (*dto.
 			ID:       user.ID,
 			Username: user.Username,
 			Email:    user.Email,
-			CreateAt: user.CreatedAt.Format(time.RFC3339),
+			CreateAt: user.CreatedAt.String(),
 		})
 	}
 
