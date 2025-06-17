@@ -6,8 +6,9 @@ import (
 	"godemo/internal/wire"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jessewkun/gocommon/cache"
-	"github.com/jessewkun/gocommon/db"
+	"github.com/jessewkun/gocommon/db/mongodb"
+	"github.com/jessewkun/gocommon/db/mysql"
+	"github.com/jessewkun/gocommon/db/redis"
 	"github.com/jessewkun/gocommon/middleware"
 	"github.com/jessewkun/gocommon/response"
 
@@ -55,8 +56,9 @@ func registerSystemRoutes(r *gin.Engine) {
 	// 组件探活
 	r.GET("/healthcheck/active", func(c *gin.Context) {
 		data := map[string]interface{}{
-			"db":    db.HealthCheck(),
-			"cache": cache.HealthCheck(),
+			"mysql":   mysql.HealthCheck(),
+			"redis":   redis.HealthCheck(),
+			"mongodb": mongodb.HealthCheck(),
 		}
 		c.JSON(http.StatusOK, response.SuccessResp(c, data))
 	})

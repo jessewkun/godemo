@@ -15,9 +15,10 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/gin-gonic/gin"
 	"github.com/jessewkun/gocommon/alarm"
-	"github.com/jessewkun/gocommon/cache"
 	"github.com/jessewkun/gocommon/config"
-	"github.com/jessewkun/gocommon/db"
+	"github.com/jessewkun/gocommon/db/mongodb"
+	"github.com/jessewkun/gocommon/db/mysql"
+	"github.com/jessewkun/gocommon/db/redis"
 	"github.com/jessewkun/gocommon/logger"
 	"github.com/spf13/viper"
 )
@@ -57,13 +58,17 @@ func initComponents() error {
 	if err != nil {
 		return fmt.Errorf("init logger error: %s", err)
 	}
-	err = db.InitMysql(baseConfig.Mysql)
+	err = mysql.InitMysql(baseConfig.Mysql)
 	if err != nil {
 		return fmt.Errorf("init mysql error: %s", err)
 	}
-	err = cache.InitRedis(baseConfig.Redis)
+	err = redis.InitRedis(baseConfig.Redis)
 	if err != nil {
 		return fmt.Errorf("init redis error: %s", err)
+	}
+	err = mongodb.InitMongoDB(baseConfig.Mongodb)
+	if err != nil {
+		return fmt.Errorf("init mongodb error: %s", err)
 	}
 	err = alarm.InitBark(baseConfig.Alarm)
 	if err != nil {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/jessewkun/gocommon/cache"
+	gocommonredis "github.com/jessewkun/gocommon/db/redis"
 )
 
 type MainCache struct{ *redis.Client }
@@ -14,7 +14,7 @@ type MainCacheName string
 var MainCacheNameValue MainCacheName = "main"
 
 func ProvideMainCache(name MainCacheName) MainCache {
-	conn, err := cache.GetConn(string(name))
+	conn, err := gocommonredis.GetConn(string(name))
 	if err != nil {
 		panic(fmt.Errorf("get cache conn error: %s", err))
 	}

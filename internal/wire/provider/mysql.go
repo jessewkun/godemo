@@ -3,7 +3,7 @@ package provider
 import (
 	"fmt"
 
-	"github.com/jessewkun/gocommon/db"
+	"github.com/jessewkun/gocommon/db/mysql"
 	"gorm.io/gorm"
 )
 
@@ -14,7 +14,7 @@ type MainDBName string
 var MainDBNameValue MainDBName = "main"
 
 func ProvideMainDB(name MainDBName) MainDB {
-	conn, err := db.GetConn(string(name))
+	conn, err := mysql.GetConn(string(name))
 	if err != nil {
 		panic(fmt.Errorf("get db conn error: %s", err))
 	}
