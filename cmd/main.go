@@ -58,6 +58,10 @@ func initComponents() error {
 	if err != nil {
 		return fmt.Errorf("init logger error: %s", err)
 	}
+	err = alarm.InitBark(baseConfig.Alarm)
+	if err != nil {
+		return fmt.Errorf("init alarm error: %s", err)
+	}
 	err = mysql.InitMysql(baseConfig.Mysql)
 	if err != nil {
 		return fmt.Errorf("init mysql error: %s", err)
@@ -69,10 +73,6 @@ func initComponents() error {
 	err = mongodb.InitMongoDB(baseConfig.Mongodb)
 	if err != nil {
 		return fmt.Errorf("init mongodb error: %s", err)
-	}
-	err = alarm.InitBark(baseConfig.Alarm)
-	if err != nil {
-		return fmt.Errorf("init alarm error: %s", err)
 	}
 	return nil
 }

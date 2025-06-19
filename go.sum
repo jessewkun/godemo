@@ -79,6 +79,10 @@ github.com/jessewkun/gocommon v0.0.0-20250617033102-ec98c49cb92e h1:HguLCMWPLe89
 github.com/jessewkun/gocommon v0.0.0-20250617033102-ec98c49cb92e/go.mod h1:RUdOmk3dZFIfeo9AEp/Hulb/uVRJwXdAocdnZz+IUQE=
 github.com/jessewkun/gocommon v0.0.0-20250617033852-6567ae9f6a1d h1:cUJ46vCSwl0pxQrqxfUnqIwk940GCttxg+65+nD4ht0=
 github.com/jessewkun/gocommon v0.0.0-20250617033852-6567ae9f6a1d/go.mod h1:RUdOmk3dZFIfeo9AEp/Hulb/uVRJwXdAocdnZz+IUQE=
+github.com/jessewkun/gocommon v0.0.0-20250618072705-e14ef6bd56b0 h1:H2Cc9YZ1ZnkHMMWkhECCd+kytK9p3uyZvCHNmDt4+vQ=
+github.com/jessewkun/gocommon v0.0.0-20250618072705-e14ef6bd56b0/go.mod h1:RUdOmk3dZFIfeo9AEp/Hulb/uVRJwXdAocdnZz+IUQE=
+github.com/jessewkun/gocommon v0.0.0-20250619052931-cf2e5540c60c h1:MJ86A5t5Snt4e+eC5rtoOe84ML0pNniuXxjlYGJlcWM=
+github.com/jessewkun/gocommon v0.0.0-20250619052931-cf2e5540c60c/go.mod h1:RUdOmk3dZFIfeo9AEp/Hulb/uVRJwXdAocdnZz+IUQE=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
 github.com/jinzhu/inflection v1.0.0/go.mod h1:h+uFLlag+Qp1Va5pdKtLDYj+kHp5pxUVkryuEj+Srlc=
 github.com/jinzhu/now v1.1.5 h1:/o9tlHleP7gOFmsnYNz3RGnqzefHA47wQpKrrdTIwXQ=

@@ -136,3 +136,31 @@ make cover
 1. 确保在运行服务前已正确配置数据库和 Redis 连接信息
 2. 开发新功能时注意遵循项目的代码结构和规范
 3. 提交代码前请运行测试确保功能正常
+
+## Docker 使用说明
+
+### 构建镜像
+
+```bash
+docker build -t godemo .
+```
+
+### 运行容器（指定不同环境配置文件）
+
+默认使用开发环境配置（debug.toml）：
+
+```bash
+docker run --rm godemo
+```
+
+指定生产环境配置（release.toml）：
+
+```bash
+docker run --rm godemo -c ./config/release.toml
+```
+
+指定测试环境配置（test.toml）：
+
+```bash
+docker run --rm godemo -c ./config/test.toml
+```
