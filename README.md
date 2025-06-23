@@ -11,6 +11,10 @@
 -   集成 Swagger 文档
 -   支持 Redis 缓存
 -   支持 MySQL 数据库（使用 GORM）
+-   支持 elasticsearch
+-   支持 mongodb
+-   支持 http client
+-   支持调试与动态开关
 -   配置管理（使用 Viper）
 -   日志管理
 -   优雅启动和关闭

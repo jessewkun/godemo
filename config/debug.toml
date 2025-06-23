@@ -3,7 +3,7 @@ port = ":8001"
 domain = "http://localhost:8001"
 
 [debug]
-    module = ["mysql"] # 可选值 mysql,http, + 自定义业务模块
+    module = ["mysql","http"] # 可选值 mysql,http, + 自定义业务模块
     mode = "console" # 可选值 log, console, 默认 console
 
 [log]
@@ -25,7 +25,7 @@ domain = "http://localhost:8001"
 [mysql]
     [mysql.main]
         dsn = [
-            "root:@tcp(127.0.0.1:3306)/test?charset=utf8&parseTime=True&loc=Local",
+            "root:123456@tcp(127.0.0.1:3306)/testdb?charset=utf8&parseTime=True&loc=Local",
         ]
         max_conn = 50           # 最大连接数
         max_idle_conn = 25      # 最大空闲连接数
@@ -44,3 +44,9 @@ domain = "http://localhost:8001"
         slow_threshold = 500    # 慢查询阈值，单位毫秒
         is_log = true           # 是否记录日志
 
+
+[mongodb]
+    [mongodb.main]
+        uris = [
+            "mongodb://127.0.0.1:27017"
+        ]
