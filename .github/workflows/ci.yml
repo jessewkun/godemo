@@ -22,6 +22,15 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      - name: 下载依赖
+        run: go mod download
+
+      - name: 安装 wire
+        run: go install github.com/google/wire/cmd/wire@latest
+
+      - name: 生成 wire 代码
+        run: cd internal/wire && wire
+
       - name: 安装 staticcheck
         run: go install honnef.co/go/tools/cmd/staticcheck@latest
 
@@ -42,6 +51,15 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      - name: 下载依赖
+        run: go mod download
+
+      - name: 安装 wire
+        run: go install github.com/google/wire/cmd/wire@latest
+
+      - name: 生成 wire 代码
+        run: cd internal/wire && wire
+
       - name: 安装 gosec
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
@@ -60,6 +78,36 @@ jobs:
   test:
     name: 单元测试
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: 123456
+          MYSQL_DATABASE: testdb
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7.2
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=5
+
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -72,6 +120,26 @@ jobs:
 
       - name: 下载依赖
         run: go mod download
+
+      - name: 安装 wire
+        run: go install github.com/google/wire/cmd/wire@latest
+
+      - name: 生成 wire 代码
+        run: cd internal/wire && wire
+
+      - name: 等待数据库服务就绪
+        run: |
+          # 安装MySQL客户端
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+          # 安装Redis客户端
+          sudo apt-get install -y redis-tools
+
+          echo "等待MySQL服务就绪..."
+          timeout 60 bash -c 'until mysql -h 127.0.0.1 -P 3306 -u root -p123456 -e "SELECT 1"; do sleep 2; done'
+          echo "等待Redis服务就绪..."
+          timeout 60 bash -c 'until redis-cli -h 127.0.0.1 -p 6379 ping; do sleep 2; done'
 
       - name: 运行单元测试
         run: go test -v ./... -coverprofile=coverage.out
@@ -101,6 +169,15 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      - name: 下载依赖
+        run: go mod download
+
+      - name: 安装 wire
+        run: go install github.com/google/wire/cmd/wire@latest
+
+      - name: 生成 wire 代码
+        run: cd internal/wire && wire
+
       - name: 检查依赖更新
         run: go list -u -m all
 
@@ -123,6 +200,18 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      - name: 下载依赖
+        run: go mod download
+
+      - name: 安装 wire
+        run: go install github.com/google/wire/cmd/wire@latest
+
+      - name: 生成 wire 代码
+        run: cd internal/wire && wire
+
+      - name: 安装 goimports
+        run: go install golang.org/x/tools/cmd/goimports@latest
+
       - name: 检查代码格式
         run: |
           if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
@@ -143,6 +232,36 @@ jobs:
   build:
     name: 构建检查
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: 123456
+          MYSQL_DATABASE: testdb
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7.2
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=5
+
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -160,6 +279,30 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      - name: 下载依赖
+        run: go mod download
+
+      - name: 安装 wire
+        run: go install github.com/google/wire/cmd/wire@latest
+
+      - name: 生成 wire 代码
+        run: cd internal/wire && wire
+
+      - name: 等待数据库服务就绪
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # 安装MySQL客户端
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+          # 安装Redis客户端
+          sudo apt-get install -y redis-tools
+
+          echo "等待MySQL服务就绪..."
+          timeout 60 bash -c 'until mysql -h 127.0.0.1 -P 3306 -u root -p123456 -e "SELECT 1"; do sleep 2; done'
+          echo "等待Redis服务就绪..."
+          timeout 60 bash -c 'until redis-cli -h 127.0.0.1 -p 6379 ping; do sleep 2; done'
+
       - name: 构建项目
         run: |
           GOOS=${{ matrix.os == 'windows-latest' && 'windows' || matrix.os == 'macos-latest' && 'darwin' || 'linux' }} \
@@ -170,6 +313,36 @@ jobs:
   benchmark:
     name: 性能基准测试
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: 123456
+          MYSQL_DATABASE: testdb
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7.2
+        ports:
+          - 6379:6379
+        options: --health-cmd="redis-cli ping" --health-interval=10s --health-timeout=5s --health-retries=5
+
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -179,6 +352,29 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+
+      - name: 下载依赖
+        run: go mod download
+
+      - name: 安装 wire
+        run: go install github.com/google/wire/cmd/wire@latest
+
+      - name: 生成 wire 代码
+        run: cd internal/wire && wire
+
+      - name: 等待数据库服务就绪
+        run: |
+          # 安装MySQL客户端
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+          # 安装Redis客户端
+          sudo apt-get install -y redis-tools
+
+          echo "等待MySQL服务就绪..."
+          timeout 60 bash -c 'until mysql -h 127.0.0.1 -P 3306 -u root -p123456 -e "SELECT 1"; do sleep 2; done'
+          echo "等待Redis服务就绪..."
+          timeout 60 bash -c 'until redis-cli -h 127.0.0.1 -p 6379 ping; do sleep 2; done'
 
       - name: 运行基准测试
         run: |
@@ -203,6 +399,15 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+
+      - name: 下载依赖
+        run: go mod download
+
+      - name: 安装 wire
+        run: go install github.com/google/wire/cmd/wire@latest
+
+      - name: 生成 wire 代码
+        run: cd internal/wire && wire
 
       - name: 检查文档完整性
         run: |

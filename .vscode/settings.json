@@ -10,6 +10,17 @@
     "files.trimFinalNewlines": true,
     "files.insertFinalNewline": true,
 
+    "[toml]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": false,
+        "editor.defaultFormatter": null // 禁用插件影响
+    },
+    "[yaml]": {
+        "editor.tabSize": 2,
+        "editor.insertSpaces": true
+    },
+
     "go.lintTool": "staticcheck",
     "go.lintOnSave": "package",
     "go.lintFlags": ["--fast"],
