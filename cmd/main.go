@@ -51,6 +51,8 @@ func startServer() *http.Server {
 		IdleTimeout:  60 * time.Second,
 	}
 
+	fmt.Printf("Starting server on %s\n", baseConfig.Port)
+
 	go func() {
 		logger.Info(context.Background(), "MAIN", "Starting server on %s", baseConfig.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
