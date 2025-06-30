@@ -144,7 +144,7 @@ jobs:
       - name: 等待数据库服务就绪
         run: |
           echo "等待MySQL服务就绪..."
-          timeout 60 bash -c 'until mysql -h 127.0.0.1 -P 3306 -u root -ppassword -e "SELECT 1"; do sleep 2; done'
+          timeout 60 bash -c 'until mysql -h 127.0.0.1 -P 3306 -u root -p123456 -e "SELECT 1"; do sleep 2; done'
           echo "等待Redis服务就绪..."
           timeout 60 bash -c 'until redis-cli -h 127.0.0.1 -p 6379 ping; do sleep 2; done'
 
@@ -313,7 +313,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           echo "等待MySQL服务就绪..."
-          timeout 60 bash -c 'until mysql -h 127.0.0.1 -P 3306 -u root -ppassword -e "SELECT 1"; do sleep 2; done'
+          timeout 60 bash -c 'until mysql -h 127.0.0.1 -P 3306 -u root -p123456 -e "SELECT 1"; do sleep 2; done'
           echo "等待Redis服务就绪..."
           timeout 60 bash -c 'until redis-cli -h 127.0.0.1 -p 6379 ping; do sleep 2; done'
 
@@ -393,7 +393,7 @@ jobs:
       - name: 等待数据库服务就绪
         run: |
           echo "等待MySQL服务就绪..."
-          timeout 60 bash -c 'until mysql -h 127.0.0.1 -P 3306 -u root -ppassword -e "SELECT 1"; do sleep 2; done'
+          timeout 60 bash -c 'until mysql -h 127.0.0.1 -P 3306 -u root -p123456 -e "SELECT 1"; do sleep 2; done'
           echo "等待Redis服务就绪..."
           timeout 60 bash -c 'until redis-cli -h 127.0.0.1 -p 6379 ping; do sleep 2; done'
 
