@@ -1,101 +1,111 @@
-.PHONY: mod,run,cover,clean,debug,test,release,stop,swag,wire
+.PHONY: help build run stop clean test wire mod
 
-# 自定义echo，避免颜色无法输出
-# echo -e 参数有终端不识别
-ECHO = printf
+# 默认环境
+ENV ?= debug
+
+# 应用配置
+BINARY_NAME = godemo
+CMD_FILE = cmd/main.go
+CONFIG_DIR = config
 
 # 颜色定义
-SUCCESS := \033[32m
-ERROR := \033[31m
-WARNING := \033[33m
-RESET := \033[0m
+SUCCESS = \033[32m
+ERROR = \033[31m
+WARNING = \033[33m
+RESET = \033[0m
 
-CUR_PATH:=$(shell pwd)
-APP_PATH:=$(CUR_PATH)
-CONFIG_NAME:=$(CUR_PATH)/config.toml
-CMD_FILE:=$(CUR_PATH)/cmd/main.go
-BINARY_NAME = godemo
+# 帮助信息
+help:
+	@echo "可用的命令："
+	@echo "  make build                           - 清理并构建应用"
+	@echo "  make run [ENV=debug|test|release]    - 构建并运行应用"
+	@echo "  make stop                            - 停止应用"
+	@echo "  make status                          - 查看应用状态"
+	@echo "  make clean                           - 清理构建文件"
+	@echo "  make test                            - 运行测试"
+	@echo "  make wire                            - 生成依赖注入代码"
+	@echo "  make mod                             - 整理 Go 模块"
+	@echo ""
+	@echo "示例："
+	@echo "  make run                             - 以 debug 环境运行"
+	@echo "  make run ENV=debug                   - 以 debug 环境运行"
+	@echo "  make run ENV=test                    - 以 test 环境运行"
+	@echo "  make run ENV=release                 - 以 release 环境运行"
+	@echo "  make build                           - 清理并构建应用"
 
-export GO111MODULE=on
-export GOPROXY=https://goproxy.cn
-# export GOSUMDB=off
-export GO111MODULE=on
+# 构建应用
+build: clean wire
+	@echo "$(SUCCESS)===> 构建 $(BINARY_NAME)$(RESET)"
+	@go build -o bin/$(BINARY_NAME) $(CMD_FILE)
+	@chmod +x bin/$(BINARY_NAME)
+	@echo "$(SUCCESS)===> 构建完成$(RESET)"
 
-default: debug
-
-clean:
-	@$(ECHO) "================================\n"
-	@$(ECHO) "   Cleaning godemo Service       \n"
-	@$(ECHO) "================================\n"
-	@rm -rf $(APP_PATH)/bin/*
-	@rm -rf $(APP_PATH)/config/config.toml
-	@rm -rf ./logs/*
-	@rm -rf ./nohup.out
-	@$(ECHO) "$(SUCCESS)$(BINARY_NAME) clean up completed$(RESET)\n"
-
-mod:
-	@go mod tidy -v
-	@go mod download
-
-debug: clean cmd/main.go go.sum go.mod wire
-	@$(ECHO) "================================\n"
-	@$(ECHO) "   Building godemo Service       \n"
-	@$(ECHO) "================================\n"
-	@cp $(CUR_PATH)/config/debug.toml $(CUR_PATH)/config/config.toml
-	@go env
-	@go build -o $(APP_PATH)/bin/$(BINARY_NAME) $(CMD_FILE)
-	@$(ECHO) "$(SUCCESS)[debug] $(BINARY_NAME) build success$(RESET)\n"
-
-test: clean cmd/main.go go.sum go.mod wire
-	@$(ECHO) "================================\n"
-	@$(ECHO) "   Building godemo Service       \n"
-	@$(ECHO) "================================\n"
-	@cp $(CUR_PATH)/config/test.toml $(CUR_PATH)/config/config.toml
-	@go env
-	@go build -o $(APP_PATH)/bin/$(BINARY_NAME) $(CMD_FILE)
-	@$(ECHO) "$(SUCCESS)[test] $(BINARY_NAME) build success$(RESET)\n"
-
-release: clean cmd/main.go go.sum go.mod wire
-	@$(ECHO) "================================\n"
-	@$(ECHO) "   Building godemo Service       \n"
-	@$(ECHO) "================================\n"
-	@cp $(CUR_PATH)/config/release.toml $(CUR_PATH)/config/config.toml
-	@go env
-	@go build -o $(APP_PATH)/bin/$(BINARY_NAME) $(CMD_FILE)
-	@$(ECHO) "$(SUCCESS)[release] $(BINARY_NAME) build success$(RESET)\n"
-
+# 运行应用
 run:
-	@make -s stop
-	@$(ECHO) "================================\n"
-	@$(ECHO) "   Running godemo Service       \n"
-	@$(ECHO) "================================\n"
-	@nohup $(APP_PATH)/bin/$(BINARY_NAME) -c $(CUR_PATH)/config/config.toml > /dev/null 2>&1 &
-	@make -s check-process
+	@echo "$(SUCCESS)===> 启动 $(BINARY_NAME) [$(ENV) 环境]$(RESET)"
+	@cp $(CONFIG_DIR)/$(ENV).toml $(CONFIG_DIR)/config.toml
+	@mkdir -p logs
+	@nohup bin/$(BINARY_NAME) -c $(CONFIG_DIR)/config.toml > logs/app.log 2>&1 &
+	@sleep 2
+	@make status
 
+# 停止应用
 stop:
-	@$(ECHO) "================================\n"
-	@$(ECHO) "   Stoping godemo Service       \n"
-	@$(ECHO) "================================\n"
-	@ps -ef | grep bin/$(BINARY_NAME) | grep -v grep | awk '{print $$2}' | xargs -r kill -9
-	@$(ECHO) "$(WARNING)$(BINARY_NAME) service is shutdown$(RESET)\n"
-
-check-process:
-	@if ps aux | grep -v grep | grep bin/$(BINARY_NAME); then \
-		$(ECHO) "$(SUCCESS)$(BINARY_NAME) service is running$(RESET)\n"; \
+	@echo "$(WARNING)===> 停止 $(BINARY_NAME)$(RESET)"
+	@echo "检查进程: pgrep -f 'bin/$(BINARY_NAME)'"
+	@if pgrep -f "bin/$(BINARY_NAME)" > /dev/null; then \
+		echo "发现进程，正在停止..."; \
+		pkill -f "bin/$(BINARY_NAME)" || true; \
+		sleep 1; \
+		# 再次检查进程是否真的停止了 \
+		if pgrep -f "bin/$(BINARY_NAME)" > /dev/null; then \
+			echo "进程仍在运行，强制停止..."; \
+			pkill -9 -f "bin/$(BINARY_NAME)" || true; \
+			sleep 1; \
+		fi; \
+		echo "$(SUCCESS)===> 应用已停止$(RESET)"; \
 	else \
-		$(ECHO) "$(ERROR)$(BINARY_NAME) service is not running$(RESET)\n"; \
+		echo "未发现进程"; \
+		echo "$(SUCCESS)===> 应用未运行$(RESET)"; \
 	fi
 
-swag:
-	@swag init
+# 查看应用状态
+status:
+	@if pgrep -f "bin/$(BINARY_NAME)" > /dev/null; then \
+		echo "$(SUCCESS)===> $(BINARY_NAME) 正在运行$(RESET)"; \
+		ps aux | grep -v grep | grep "bin/$(BINARY_NAME)"; \
+	else \
+		echo "$(ERROR)===> $(BINARY_NAME) 未运行$(RESET)"; \
+	fi
 
-cover:
-	@go vet $(APP_PATH)
-	@go test -coverpkg="./..." -cover $(APP_PATH)/... -gcflags='all=-N -l'
+# 清理构建文件
+clean:
+	@echo "$(WARNING)===> 清理构建文件$(RESET)"
+	@rm -rf bin/*
+	@rm -f $(CONFIG_DIR)/config.toml
+	@rm -rf logs/*
+	@rm -f nohup.out
+	@echo "$(SUCCESS)===> 清理完成$(RESET)"
 
+# 运行测试
+test:
+	@echo "$(SUCCESS)===> 运行测试$(RESET)"
+	@go test -v ./...
+
+# 生成依赖注入代码
 wire:
-	@$(ECHO) "================================\n"
-	@$(ECHO) "   Wire generate godemo Service       \n"
-	@$(ECHO) "================================\n"
-	@cd internal/wire && rm -rf wire_gen.go && wire
-	@$(ECHO) "$(SUCCESS)wire generate success$(RESET)\n"
+	@echo "$(SUCCESS)===> 生成依赖注入代码$(RESET)"
+	@cd internal/wire && wire
+	@echo "$(SUCCESS)===> 依赖注入代码生成完成$(RESET)"
+
+# 整理 Go 模块
+mod:
+	@echo "$(SUCCESS)===> 整理 Go 模块$(RESET)"
+	@go mod tidy
+	@go mod download
+	@echo "$(SUCCESS)===> 模块整理完成$(RESET)"
+
+
+
+# 默认目标
+default: help

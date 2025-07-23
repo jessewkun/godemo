@@ -10,11 +10,17 @@ import (
 	"syscall"
 	"time"
 
+	"godemo/internal/dto"
 	"godemo/internal/router"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
+	"github.com/jessewkun/gocommon/common"
 	"github.com/jessewkun/gocommon/config"
 	"github.com/jessewkun/gocommon/logger"
+
+	_ "godemo/config"
 
 	_ "github.com/jessewkun/gocommon/debug"
 	_ "github.com/jessewkun/gocommon/http"
@@ -43,6 +49,11 @@ func startServer() *http.Server {
 	gin.SetMode(baseConfig.Mode)
 	r := gin.Default()
 
+	// 注册自定义验证函数
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		dto.RegisterValidator(v)
+	}
+
 	srv := &http.Server{
 		Addr:         baseConfig.Port,
 		Handler:      router.InitRouter(r),
@@ -54,9 +65,9 @@ func startServer() *http.Server {
 	fmt.Printf("Starting server on %s\n", baseConfig.Port)
 
 	go func() {
-		logger.Info(context.Background(), "MAIN", "Starting server on %s", baseConfig.Port)
+		log(context.Background(), "MAIN", "Starting server on %s", baseConfig.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.ErrorWithMsg(context.Background(), "MAIN", "Server startup failed: %v", err)
+			log(context.Background(), "MAIN", "Server startup failed: %v", err)
 			os.Exit(1)
 		}
 	}()
@@ -70,17 +81,17 @@ func gracefulExit(srv *http.Server) {
 	signal.Notify(exit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	sig := <-exit
-	logger.Info(context.Background(), "MAIN", "Received signal: %v. Shutting down server...", sig)
+	log(context.Background(), "MAIN", "Received signal: %v. Shutting down server...", sig)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		logger.ErrorWithMsg(context.Background(), "MAIN", "Server shutdown failed: %v", err)
+		log(context.Background(), "MAIN", "Server shutdown failed: %v", err)
 		os.Exit(1)
 	}
 
-	logger.Info(context.Background(), "MAIN", "Server gracefully shutdown")
+	log(context.Background(), "MAIN", "Server gracefully shutdown")
 	fmt.Println("Server gracefully shutdown")
 }
 
@@ -93,4 +104,12 @@ func main() {
 	srv := startServer()
 
 	gracefulExit(srv)
+}
+
+func log(c context.Context, tag string, msg string, args ...interface{}) {
+	if common.IsDebug() {
+		logger.Info(c, tag, msg, args...)
+	} else {
+		logger.InfoWithAlarm(c, tag, msg, args...)
+	}
 }

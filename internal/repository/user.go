@@ -4,6 +4,9 @@ import (
 	"context"
 	"godemo/internal/model"
 	"godemo/internal/wire/provider"
+
+	"github.com/jessewkun/gocommon/logger"
+	"gorm.io/gorm"
 )
 
 // UserRepository 用户仓储接口
@@ -36,6 +39,12 @@ func (r *userRepository) FindByID(ctx context.Context, id uint) (*model.User, er
 	var user model.User
 	err := r.db.DB.First(&user, id).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		logger.ErrorWithField(ctx, "find english word by id failed", err.Error(), map[string]interface{}{
+			"id": id,
+		})
 		return nil, err
 	}
 	return &user, nil

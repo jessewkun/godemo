@@ -9,7 +9,7 @@ type UserCreateRequest struct {
 
 // UserCreateResponse 创建用户响应
 type UserCreateResponse struct {
-	ID       uint   `json:"id"`        // 用户ID
+	ID       int    `json:"id"`        // 用户ID
 	Username string `json:"username"`  // 用户名
 	Email    string `json:"email"`     // 邮箱
 	CreateAt string `json:"create_at"` // 创建时间
