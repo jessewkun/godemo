@@ -9,7 +9,7 @@ require (
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/wire v0.6.0
-	github.com/jessewkun/gocommon v0.0.0-20250724075339-9c9a015bc78b
+	github.com/jessewkun/gocommon v0.0.0-20250724082529-3adac19cd993
 	github.com/prometheus/client_golang v1.12.2
 	github.com/spf13/viper v1.20.1
 	github.com/swaggo/files v1.0.1

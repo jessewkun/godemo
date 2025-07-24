@@ -50,7 +50,7 @@ var pprofRateLimitConfig = &middleware.RateLimiterConfig{
 
 // InitRouter 初始化路由
 func InitRouter(r *gin.Engine) *gin.Engine {
-	r.Use(middleware.Recovery(), middleware.Prometheus(), middleware.Cros(crosConfig), middleware.Trace(), middleware.IOLog(nil))
+	r.Use(middleware.Trace(), middleware.IOLog(nil), middleware.Recovery(), middleware.Prometheus(), middleware.Cros(crosConfig))
 	r.NoMethod(HandleNotFound)
 	r.NoRoute(HandleNotFound)
 
