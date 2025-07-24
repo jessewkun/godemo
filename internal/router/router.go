@@ -13,6 +13,7 @@ import (
 	"github.com/jessewkun/gocommon/db/redis"
 	"github.com/jessewkun/gocommon/middleware"
 	"github.com/jessewkun/gocommon/response"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/time/rate"
 
 	swaggerFiles "github.com/swaggo/files"
@@ -49,7 +50,7 @@ var pprofRateLimitConfig = &middleware.RateLimiterConfig{
 
 // InitRouter 初始化路由
 func InitRouter(r *gin.Engine) *gin.Engine {
-	r.Use(middleware.Recovery(), middleware.Cros(crosConfig), middleware.Trace(), middleware.IOLog(nil))
+	r.Use(middleware.Recovery(), middleware.Prometheus(), middleware.Cros(crosConfig), middleware.Trace(), middleware.IOLog(nil))
 	r.NoMethod(HandleNotFound)
 	r.NoRoute(HandleNotFound)
 
@@ -81,6 +82,9 @@ func registerSystemRoutes(r *gin.Engine) {
 		}
 		c.JSON(http.StatusOK, response.SuccessResp(c, data))
 	})
+
+	// prometheus metrics
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// swagger
 	if gin.Mode() == gin.DebugMode {
