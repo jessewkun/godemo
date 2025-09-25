@@ -12,6 +12,7 @@ import (
 
 	"godemo/internal/dto"
 	"godemo/internal/router"
+	"godemo/internal/wire"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -29,6 +30,7 @@ import (
 var (
 	configFile string
 	baseConfig *config.BaseConfig
+	apis       *wire.APIs // 添加APIs引用
 )
 
 func init() {
@@ -54,9 +56,17 @@ func startServer() *http.Server {
 		dto.RegisterValidator(v)
 	}
 
+	// 使用 wire 初始化依赖
+	var err error
+	apis, err = wire.InitializeAPI()
+	if err != nil {
+		log(context.Background(), "MAIN", "Failed to initialize APIs: %v", err)
+		os.Exit(1)
+	}
+
 	srv := &http.Server{
 		Addr:         baseConfig.Port,
-		Handler:      router.InitRouter(r),
+		Handler:      router.InitRouter(r, apis),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,

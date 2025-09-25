@@ -1,0 +1,128 @@
+name: Release Environment CI/CD
+
+on:
+    release:
+        types: [published]
+    workflow_dispatch:
+        inputs:
+            environment:
+                description: "deploy environment"
+                required: true
+                default: "release"
+                type: choice
+                options:
+                    - release
+
+env:
+    GO_VERSION: "1.23.10"
+    DEPLOY_ENV: "release"
+
+permissions:
+    contents: read
+    packages: read
+
+jobs:
+    build-and-deploy-release:
+        name: build and deploy to release environment
+        runs-on: ubuntu-latest
+        steps:
+            - name: checkout code
+              uses: actions/checkout@v3
+              with:
+                  token: ${{ secrets.PAT_TOKEN }}
+
+            - name: setup go environment
+              uses: actions/setup-go@v4
+              with:
+                  go-version: ${{ env.GO_VERSION }}
+
+            - name: configure git access to private repository
+              run: |
+                  git config --global url."https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+            - name: configure go private module
+              run: |
+                  go env -w GOPROXY=https://goproxy.io,direct
+
+            - name: download dependencies
+              run: |
+                  go install github.com/google/wire/cmd/wire@latest
+                  go mod download
+
+            - name: build application
+              run: |
+                  echo "当前部署环境: ${{ env.DEPLOY_ENV }}"
+                  make build
+                  chmod +x bin/godemo
+
+            - name: transfer deployment package to release server
+              uses: appleboy/scp-action@v0.1.6
+              with:
+                  host: ${{ secrets.REMOTE_HOST }}
+                  username: ${{ secrets.REMOTE_USER }}
+                  key: ${{ secrets.SSH_PRIVATE_KEY }}
+                  port: ${{ secrets.REMOTE_PORT }}
+                  source: "bin/godemo,config,Makefile,go.mod,go.sum,scripts/deploy.sh,resources"
+                  target: "/root/godemo"
+
+            - name: deploy to release environment
+              uses: appleboy/ssh-action@v1.0.0
+              with:
+                  host: ${{ secrets.REMOTE_HOST }}
+                  username: ${{ secrets.REMOTE_USER }}
+                  key: ${{ secrets.SSH_PRIVATE_KEY }}
+                  port: ${{ secrets.REMOTE_PORT }}
+                  script: |
+                      echo "=== release environment deployment start ==="
+                      cd /root/godemo
+                      echo "current directory: $(pwd)"
+                      echo "directory content:"
+                      ls -la
+                      echo "check deployment script:"
+                      if [ -f "scripts/deploy.sh" ]; then
+                          echo "✅ deploy.sh file exists"
+                          ls -la scripts/deploy.sh
+                          echo "set execution permission..."
+                          chmod +x scripts/deploy.sh
+                          echo "execute deployment script [environment: ${{ env.DEPLOY_ENV }}]..."
+                          ./scripts/deploy.sh ${{ env.DEPLOY_ENV }} app
+                      else
+                          echo "❌ deploy.sh file does not exist"
+                          echo "current directory file:"
+                          ls -la
+                          exit 1
+                      fi
+
+            - name: send feishu notification
+              run: |
+                RELEASE_TAG=${{ toJson(github.event.release.tag_name) }}
+                RELEASE_TITLE=${{ toJson(github.event.release.name) }}
+                RELEASE_BODY=${{ toJson(github.event.release.body) }}
+                ACTOR=${{ toJson(github.actor) }}
+                RELEASE_URL=${{ toJson(github.event.release.html_url) }}
+
+                PAYLOAD=$(cat <<EOF
+                {
+                  "msg_type": "post",
+                  "content": {
+                    "post": {
+                      "zh_cn": {
+                        "title": "🚀 【后端】生产环境上线通知",
+                        "content": [[
+                          { "tag": "text", "text": "🏷️ 版本标签：$RELEASE_TAG\n" },
+                          { "tag": "text", "text": "📝 版本标题：$RELEASE_TITLE\n" },
+                          { "tag": "text", "text": "🙋 发布人：$ACTOR\n" },
+                          { "tag": "text", "text": "🔗 Release 链接：$RELEASE_URL\n" },
+                          { "tag": "text", "text": "📋 发布说明：\n$RELEASE_BODY\n" }
+                        ]]
+                      }
+                    }
+                  }
+                }
+                EOF
+                )
+                curl -s -X POST "$FEISHU_WEBHOOK" \
+                -H "Content-Type: application/json" \
+                -d "$PAYLOAD"
+              env:
+                FEISHU_WEBHOOK: ${{ secrets.FEISHU_DEPLOY_ONLINE_WEBHOOK }}

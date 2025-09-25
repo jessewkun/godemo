@@ -1,0 +1,136 @@
+name: Cron Test Environment CI/CD
+
+on:
+    push:
+        branches: [test]
+    workflow_dispatch:
+        inputs:
+            environment:
+                description: "deploy environment"
+                required: true
+                default: "test"
+                type: choice
+                options:
+                    - test
+
+env:
+    GO_VERSION: "1.23.10"
+    DEPLOY_ENV: "test"
+
+permissions:
+    contents: read
+    packages: read
+
+jobs:
+    build-and-deploy-cron-test:
+        name: build and deploy cron to test environment
+        runs-on: ubuntu-latest
+        steps:
+            - name: checkout code
+              uses: actions/checkout@v3
+              with:
+                  token: ${{ secrets.PAT_TOKEN }}
+
+            - name: setup go environment
+              uses: actions/setup-go@v4
+              with:
+                  go-version: ${{ env.GO_VERSION }}
+
+            - name: configure git access to private repository
+              run: |
+                  git config --global url."https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+            - name: configure go private module
+              run: |
+                  go env -w GOPROXY=https://goproxy.io,direct
+
+            - name: download dependencies
+              run: |
+                  go install github.com/google/wire/cmd/wire@latest
+                  go mod download
+
+            - name: build cron application
+              run: |
+                  echo "当前部署环境: ${{ env.DEPLOY_ENV }}"
+                  make build-cron
+                  chmod +x bin/godemo-cron
+
+            - name: transfer deployment package to test server
+              uses: appleboy/scp-action@v0.1.6
+              with:
+                  host: ${{ secrets.TEST_REMOTE_HOST }}
+                  username: ${{ secrets.TEST_REMOTE_USER }}
+                  key: ${{ secrets.TEST_SSH_PRIVATE_KEY }}
+                  port: ${{ secrets.TEST_REMOTE_PORT }}
+                  source: "bin/godemo-cron,config,Makefile,go.mod,go.sum,scripts,resources"
+                  target: "/root/godemo-cron"
+
+            - name: deploy cron to test environment
+              uses: appleboy/ssh-action@v1.0.0
+              with:
+                  host: ${{ secrets.TEST_REMOTE_HOST }}
+                  username: ${{ secrets.TEST_REMOTE_USER }}
+                  key: ${{ secrets.TEST_SSH_PRIVATE_KEY }}
+                  port: ${{ secrets.TEST_REMOTE_PORT }}
+                  script: |
+                      echo "=== cron test environment deployment start ==="
+                      cd /root/godemo-cron
+                      echo "current directory: $(pwd)"
+                      echo "directory content:"
+                      ls -la
+                      echo "check cron binary:"
+                      if [ -f "bin/godemo-cron" ]; then
+                          echo "✅ godemo-cron binary exists"
+                          ls -la bin/godemo-cron
+                          chmod +x bin/godemo-cron
+                      else
+                          echo "❌ godemo-cron binary does not exist"
+                          exit 1
+                      fi
+                      echo "check deployment script:"
+                      if [ -f "scripts/deploy.sh" ]; then
+                          echo "✅ deploy.sh file exists"
+                          ls -la scripts/deploy.sh
+                          echo "set execution permission..."
+                          chmod +x scripts/deploy.sh
+                          echo "execute cron deployment script [environment: ${{ env.DEPLOY_ENV }}]..."
+                          ./scripts/deploy.sh ${{ env.DEPLOY_ENV }} cron
+                      else
+                          echo "❌ deploy.sh file does not exist"
+                          echo "current directory file:"
+                          ls -la
+                          exit 1
+                      fi
+
+            - name: send feishu notification
+              run: |
+                BRANCH="${{ github.base_ref || github.ref }}"
+                BRANCH_NAME=$(echo "$BRANCH" | sed 's#refs/heads/##')
+                ACTOR=${{ github.actor }}
+                PR_URL="${{ github.event.pull_request.html_url || github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
+                PR_TITLE="${{ github.event.pull_request.title || '直接推送' }}"
+
+                PAYLOAD=$(cat <<EOF
+                {
+                  "msg_type": "post",
+                  "content": {
+                    "post": {
+                      "zh_cn": {
+                        "title": "⏰ 【后端Cron】测试环境上线通知",
+                        "content": [[
+                          { "tag": "text", "text": "🔀 分支：$BRANCH_NAME\n" },
+                          { "tag": "text", "text": "🙋 操作人：$ACTOR\n" },
+                          { "tag": "text", "text": "🔗 PR 链接：$PR_URL\n" },
+                          { "tag": "text", "text": "📝 标题：$PR_TITLE\n" }
+                        ]]
+                      }
+                    }
+                  }
+                }
+                EOF
+                )
+                curl -s -X POST "$FEISHU_WEBHOOK" \
+                -H "Content-Type: application/json" \
+                -d "$PAYLOAD"
+              env:
+                FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}

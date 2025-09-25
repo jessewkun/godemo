@@ -1,0 +1,78 @@
+name: PR Check
+
+on:
+    pull_request:
+        branches: [main]
+
+env:
+    GO_VERSION: "1.23.10"
+
+permissions:
+    contents: read
+    packages: read
+
+jobs:
+    check:
+        name: 代码检查
+        runs-on: ubuntu-latest
+        steps:
+            - name: 检出代码
+              uses: actions/checkout@v3
+              with:
+                  token: ${{ secrets.PAT_TOKEN }}
+
+            - name: 设置 Go 环境
+              uses: actions/setup-go@v4
+              with:
+                  go-version: ${{ env.GO_VERSION }}
+
+            - name: 配置 Git 访问私有仓库
+              run: |
+                  git config --global url."https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+            - name: 配置 Go 私有模块
+              run: |
+                  go env -w GOPROXY=https://goproxy.io,direct
+
+            - name: 下载依赖
+              run: |
+                  go install github.com/google/wire/cmd/wire@latest
+                  make mod
+
+            - name: 编译测试
+              run: |
+                  echo "开始编译测试..."
+                  make build
+
+            - name: 代码格式检查
+              run: |
+                  echo "检查代码格式..."
+                  go fmt ./...
+                  echo "检查代码问题..."
+                  go vet ./...
+
+            - name: 运行测试
+              run: |
+                  echo "运行单元测试..."
+                  make test
+
+            - name: 检查编译产物
+              run: |
+                  if [ -f "bin/godemo" ]; then
+                      echo "✅ 编译成功"
+                      ls -la bin/
+                      echo "✅ 文件大小: $(du -h bin/godemo | cut -f1)"
+                  else
+                      echo "❌ 编译失败"
+                      exit 1
+                  fi
+
+            - name: 代码质量报告
+              run: |
+                  echo "=== 代码质量检查完成 ==="
+                  echo "✅ 代码格式检查通过"
+                  echo "✅ 代码问题检查通过"
+                  echo "✅ 编译测试通过"
+                  echo "✅ 单元测试通过"
+                  echo "✅ 编译产物验证通过"
+                  echo "🎉 PR检查全部通过！"

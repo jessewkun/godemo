@@ -12,9 +12,13 @@ import (
 	"github.com/google/wire"
 )
 
+type APIs struct {
+	UserHandler *handler.UserHandler
+}
+
 // InitializeAPI 完整依赖注入
-func InitializeAPI() (*handler.UserHandler, error) {
-	wire.Build(
+func InitializeAPI() (*APIs, error) {
+	panic(wire.Build(
 		// DB
 		wire.Value(provider.MainDBNameValue),
 		provider.ProvideMainDB,
@@ -27,6 +31,8 @@ func InitializeAPI() (*handler.UserHandler, error) {
 		service.NewUserService,
 		// Handler
 		handler.NewUserHandler,
-	)
-	return nil, nil
+
+		// APIs
+		wire.Struct(new(APIs), "UserHandler"),
+	))
 }

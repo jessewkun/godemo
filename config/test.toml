@@ -42,3 +42,23 @@ domain = "http://localhost:8001"
     password = ""
     db = 0
     is_log = true           # 是否记录日志
+
+[business]
+[business.token]
+key = ""
+iv = ""
+[business.personal_information]
+key = ""
+iv = ""
+[business.oss]
+bucket = "buckek"
+public_endpoint = "https://public_endpoint.com"
+endpoint = "oss-cn-beijing.aliyuncs.com"
+access_key = ""
+secret_key = ""
+[business.cros]
+allow_origins = [
+"https://zm-edu.com",
+]
+allow_methods = ["PUT", "PATCH", "POST", "GET", "OPTIONS"]
+allow_headers = ["Content-Type, Authorization, Content-Length,Keep-Alive,credentials,X-Requested-With,If-Modified-Since,Cache-Control,Pragma,Last-Modified,Accept,Accept-Encoding,Accept-Language,Connection,Host,Referer,User-Agent,Origin,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,Sec-Fetch-Dest,Sec-Fetch-Mode,Sec-Fetch-Site,X-Refresh-Token"]
