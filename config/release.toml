@@ -1,6 +1,7 @@
 mode = "release"
 port = ":8001"
-domain = "http://localhost:8001"
+app_name = "godemo"
+domain = "127.0.0.1"
 
 [debug]
   module = ["mysql"] # 可选值 mysql,http, + 自定义业务模块
@@ -9,56 +10,64 @@ domain = "http://localhost:8001"
 [log]
   path = "./logs/log.log"
   closed = false
-  max_size = 10240
+  max_size = 10
   max_age = 7
   max_backup = 10
   transparent_parameter = ["trace_id", "span_id", "parent_span_id", "span_kind", "span_name", "span_status", "span_start_time", "span_end_time", "span_duration", "user_id"]
-  alarm_level = "error"
+  log_level = "debug"
+  alarm_level = ""
 
 [alarm]
-  bark_ids = []
+  [alarm.bark]
+    bark_ids = []
+  [alarm.feishu]
+    webhook_url = ""
+    secret = ""
 
 [http]
   transparent_parameter = ["trace_id"]
-  is_trace_log = true
+  is_trace_log = false
 
 [mysql]
-  [mysql.main]
+  [mysql.user]
     dsn = [
-      "root:@tcp(127.0.0.1:3306)/test?charset=utf8&parseTime=True&loc=Local",
+      "test_user:password@tcp(localhost:3306)/test_user?charset=utf8&parseTime=True&loc=Local",
     ]
     max_conn = 50           # 最大连接数
-    max_idle_conn = 25      # 最大空闲连接数
-    conn_max_life = 3600    # 连接最长持续时间， 默认1小时，单位秒
+    max_idle_conn = 10      # 最大空闲连接数
+    conn_max_life_time = 3600    # 连接最长持续时间， 默认1小时，单位秒
+    conn_max_idle_time = 600    # 连接最长空闲时间， 默认10分钟，单位秒
     slow_threshold = 500    # 慢查询阈值，单位毫秒
     ignore_record_not_found_error = true # 是否忽略记录不存在的错误
-    is_log = true           # 是否记录日志  日志级别为info
+    log_level = "info"           # 是否记录日志  日志级别为info
 
 [redis]
-  [redis.main]
-    addrs = [
-      "127.0.0.1:6379"
-    ]
+  [redis.user]
+    addrs = ["localhost:6379"]
     password = ""
     db = 0
-    is_log = true           # 是否记录日志
+    is_cluster = false
+    is_log = true
+    pool_size = 100
+    idle_timeout = 300
+    idle_check_frequency = 60
+    min_idle_conns = 10
+    max_retries = 3
+    dial_timeout = 5
+    slow_threshold = 100
 
 [business]
-[business.token]
-key = ""
-iv = ""
-[business.personal_information]
-key = ""
-iv = ""
-[business.oss]
-bucket = "buckek"
-public_endpoint = "https://public_endpoint.com"
-endpoint = "oss-cn-beijing.aliyuncs.com"
-access_key = ""
-secret_key = ""
-[business.cros]
-allow_origins = [
-"https://zm-edu.com",
-]
-allow_methods = ["PUT", "PATCH", "POST", "GET", "OPTIONS"]
-allow_headers = ["Content-Type, Authorization, Content-Length,Keep-Alive,credentials,X-Requested-With,If-Modified-Since,Cache-Control,Pragma,Last-Modified,Accept,Accept-Encoding,Accept-Language,Connection,Host,Referer,User-Agent,Origin,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,Sec-Fetch-Dest,Sec-Fetch-Mode,Sec-Fetch-Site,X-Refresh-Token"]
+  [business.cros]
+    allow_origins = [
+      "http://localhost:8001",
+      "http://127.0.0.1:8001",
+      "http://tauri.localhost"
+    ]
+    allow_methods = ["DELETE", "PUT", "PATCH", "POST", "GET", "OPTIONS"]
+    allow_headers = ["Content-Type, Authorization, Content-Length,Keep-Alive,credentials,Cache-Control,user,X-Requested-With,If-Modified-Since,Cache-Control,Pragma,Last-Modified,Accept,Accept-Encoding,Accept-Language,Connection,Host,Referer,User-Agent,Origin,Sec-Ch-Ua,Sec-Ch-Ua-Mobile,Sec-Ch-Ua-Platform,Sec-Fetch-Dest,Sec-Fetch-Mode,Sec-Fetch-Site,X-Refresh-Token,did,version,x-account-id"]
+  [[business.crons]]
+    key = "demo"
+    desc = "demo task"
+    spec = "0 * * * * *" # 每分执行一次
+    enabled = true
+    timeout = "10m"

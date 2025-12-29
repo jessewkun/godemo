@@ -13,115 +13,29 @@ on:
                 options:
                     - test
 
-env:
-    GO_VERSION: "1.23.10"
-    DEPLOY_ENV: "test"
-
 permissions:
     contents: read
     packages: read
 
 jobs:
-    build-and-deploy-test:
-        name: build and deploy to test environment
-        runs-on: ubuntu-latest
-        steps:
-            - name: checkout code
-              uses: actions/checkout@v3
-              with:
-                  token: ${{ secrets.PAT_TOKEN }}
-
-            - name: setup go environment
-              uses: actions/setup-go@v4
-              with:
-                  go-version: ${{ env.GO_VERSION }}
-
-            - name: configure git access to private repository
-              run: |
-                  git config --global url."https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/".insteadOf "https://github.com/"
-
-            - name: configure go private module
-              run: |
-                  go env -w GOPROXY=https://goproxy.io,direct
-
-            - name: download dependencies
-              run: |
-                  go install github.com/google/wire/cmd/wire@latest
-                  go mod download
-
-            - name: build application
-              run: |
-                  echo "当前部署环境: ${{ env.DEPLOY_ENV }}"
-                  make build
-                  chmod +x bin/godemo
-
-            - name: transfer deployment package to test server
-              uses: appleboy/scp-action@v0.1.6
-              with:
-                  host: ${{ secrets.TEST_REMOTE_HOST }}
-                  username: ${{ secrets.TEST_REMOTE_USER }}
-                  key: ${{ secrets.TEST_SSH_PRIVATE_KEY }}
-                  port: ${{ secrets.TEST_REMOTE_PORT }}
-                  source: "bin/godemo,config,Makefile,go.mod,go.sum,scripts,resources"
-                  target: "/root/godemo"
-
-            - name: deploy to test environment
-              uses: appleboy/ssh-action@v1.0.0
-              with:
-                  host: ${{ secrets.TEST_REMOTE_HOST }}
-                  username: ${{ secrets.TEST_REMOTE_USER }}
-                  key: ${{ secrets.TEST_SSH_PRIVATE_KEY }}
-                  port: ${{ secrets.TEST_REMOTE_PORT }}
-                  script: |
-                      echo "=== test environment deployment start ==="
-                      cd /root/godemo
-                      echo "current directory: $(pwd)"
-                      echo "directory content:"
-                      ls -la
-                      echo "check deployment script:"
-                      if [ -f "scripts/deploy.sh" ]; then
-                          echo "✅ deploy.sh file exists"
-                          ls -la scripts/deploy.sh
-                          echo "set execution permission..."
-                          chmod +x scripts/deploy.sh
-                          echo "execute deployment script [environment: ${{ env.DEPLOY_ENV }}]..."
-                          ./scripts/deploy.sh ${{ env.DEPLOY_ENV }} app
-                      else
-                          echo "❌ deploy.sh file does not exist"
-                          echo "current directory file:"
-                          ls -la
-                          exit 1
-                      fi
-
-            - name: send feishu notification
-              run: |
-                BRANCH="${{ github.base_ref || github.ref }}"
-                BRANCH_NAME=$(echo "$BRANCH" | sed 's#refs/heads/##')
-                ACTOR=${{ github.actor }}
-                PR_URL="${{ github.event.pull_request.html_url || github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}"
-                PR_TITLE="${{ github.event.pull_request.title || '直接推送' }}"
-
-                PAYLOAD=$(cat <<EOF
-                {
-                  "msg_type": "post",
-                  "content": {
-                    "post": {
-                      "zh_cn": {
-                        "title": "🧪 【后端】测试环境上线通知",
-                        "content": [[
-                          { "tag": "text", "text": "🔀 分支：$BRANCH_NAME\n" },
-                          { "tag": "text", "text": "🙋 操作人：$ACTOR\n" },
-                          { "tag": "text", "text": "🔗 PR 链接：$PR_URL\n" },
-                          { "tag": "text", "text": "📝 标题：$PR_TITLE\n" }
-                        ]]
-                      }
-                    }
-                  }
-                }
-                EOF
-                )
-                curl -s -X POST "$FEISHU_WEBHOOK" \
-                -H "Content-Type: application/json" \
-                -d "$PAYLOAD"
-              env:
-                FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+    deploy-app-test:
+        name: Deploy app to test environment
+        uses: ./.github/workflows/reusable-deploy.yml
+        with:
+            app_name: "godemo"
+            build_command: "build"
+            app_type: "app"
+            deploy_env: "test"
+            target_path: "/root/godemo"
+            notify_title: "🧪 【godemo后端】测试环境上线通知"
+            git_ref: ${{ github.ref }}
+            commit_sha: ${{ github.sha }}
+            pr_title: ${{ github.event.pull_request.title }}
+            pr_url: ${{ github.event.pull_request.html_url }}
+        secrets:
+            pat_token: ${{ secrets.PAT_TOKEN }}
+            remote_host: ${{ secrets.TEST_REMOTE_HOST }}
+            remote_user: ${{ secrets.TEST_REMOTE_USER }}
+            ssh_private_key: ${{ secrets.TEST_SSH_PRIVATE_KEY }}
+            remote_port: ${{ secrets.TEST_REMOTE_PORT }}
+            feishu_webhook: ${{ secrets.FEISHU_DEPLOY_TEST_WEBHOOK }}

@@ -5,11 +5,11 @@ SHELL := /bin/bash
 
 # 应用配置
 CONFIG_DIR = config
-BINARY_NAME = gomode
+BINARY_NAME = godemo
 CMD_FILE = cmd/main.go
 
 # Cron配置
-CRON_BINARY_NAME = gomode-cron
+CRON_BINARY_NAME = godemo-cron
 CRON_CMD_FILE = cmd/cron/main.go
 
 # 颜色定义
@@ -17,6 +17,21 @@ SUCCESS = \033[32m
 ERROR = \033[31m
 WARNING = \033[33m
 RESET = \033[0m
+
+# 平台
+GOOS        ?= $(shell go env GOOS)
+GOARCH      ?= $(shell go env GOARCH)
+CGO_ENABLED ?= 0
+
+# 版本信息
+VERSION    ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
+COMMIT     ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
+BUILD_TIME ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
+MODULE := $(shell go list -m)
+LDFLAGS := -s -w \
+	-X ${MODULE}/config.version=$(VERSION) \
+	-X ${MODULE}/config.commit=$(COMMIT) \
+	-X ${MODULE}/config.buildTime=$(BUILD_TIME)
 
 # 帮助信息
 help:
@@ -56,9 +71,15 @@ fmt:
 	@echo -e "$(SUCCESS)===> 格式化代码完成$(RESET)"
 
 # 构建应用
-build: clean wire fmt
+build: clean wire
 	@echo -e "$(WARNING)===> 构建 $(BINARY_NAME)$(RESET)"
-	@go build -o bin/$(BINARY_NAME) $(CMD_FILE)
+	@CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) \
+		go build \
+		-trimpath \
+		-buildvcs=false \
+		-ldflags "$(LDFLAGS)" \
+		-o bin/$(BINARY_NAME) \
+		$(CMD_FILE)
 	@chmod +x bin/$(BINARY_NAME)
 	@echo -e "$(SUCCESS)===> 构建完成$(RESET)"
 
@@ -125,9 +146,15 @@ mod:
 	@echo -e "$(SUCCESS)===> 模块整理完成$(RESET)"
 
 # 构建cron应用
-build-cron: clean wire fmt
+build-cron: clean wire
 	@echo -e "$(WARNING)===> 构建 $(CRON_BINARY_NAME)$(RESET)"
-	@go build -o bin/$(CRON_BINARY_NAME) $(CRON_CMD_FILE)
+	@CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) \
+		go build \
+		-trimpath \
+		-buildvcs=false \
+		-ldflags "$(LDFLAGS)" \
+		-o bin/$(CRON_BINARY_NAME) \
+		$(CRON_CMD_FILE)
 	@chmod +x bin/$(CRON_BINARY_NAME)
 	@echo -e "$(SUCCESS)===> cron应用构建完成$(RESET)"
 

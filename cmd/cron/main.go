@@ -5,63 +5,50 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 
+	"godemo/internal/app"
 	"godemo/internal/cron"
 	"godemo/internal/wire"
-
-	"github.com/jessewkun/gocommon/common"
-	xconfig "github.com/jessewkun/gocommon/config"
-	"github.com/jessewkun/gocommon/logger"
 
 	_ "godemo/config"
 
 	_ "github.com/jessewkun/gocommon/debug"
 )
 
-var (
-	configFile string
-	baseConfig *xconfig.BaseConfig
-	taskName   string
-)
-
-func init() {
-	flag.StringVar(&configFile, "c", "config.yml", "config file path")
-	flag.StringVar(&taskName, "t", "", "task name")
-	flag.Parse()
+// cronServer adapts the cron.App to the app.Server interface.
+type cronServer struct {
+	cronApp *cron.App
 }
 
-func loadConfig() error {
-	var err error
-	baseConfig, err = xconfig.Init(configFile)
-	if err != nil {
-		return fmt.Errorf("load config file %s error: %w", configFile, err)
-	}
+// Start begins the cron scheduler.
+func (s *cronServer) Start(ctx context.Context) error {
+	return s.cronApp.Start(ctx)
+}
+
+// Stop halts the cron scheduler.
+func (s *cronServer) Stop(ctx context.Context) error {
+	s.cronApp.Stop(ctx)
 	return nil
 }
 
-func gracefulShutdown(ctx context.Context, app *cron.App) {
-	exit := make(chan os.Signal, 1)
-	signal.Notify(exit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	ssig := <-exit
-	log(ctx, "CRON", "Received signal: %v. Shutting down cron manager...", ssig)
-
-	app.Stop()
-
-	log(ctx, "CRON", "Cron manager gracefully shutdown")
-	fmt.Println("Cron manager gracefully shutdown")
-}
-
+// 主函数
+// 这个函数是整个应用的入口，它负责创建应用程序实例，初始化API服务器，并启动应用程序。
+// 这里的错误直接输出，没有进入日志，是因为可以在 github action 中看到错误或者手动运行时看到错误，方便排查问题。
 func main() {
-	if err := loadConfig(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
+	var configFile string
+	var taskName string
+
+	flag.StringVar(&configFile, "c", "config.yml", "config file path")
+	flag.StringVar(&taskName, "t", "", "task name to run manually")
+	flag.Parse()
+
+	application, err := app.NewApp("godemo-cron", configFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create app: %v\n", err)
 		os.Exit(1)
 	}
-	baseConfig.AppName = "godemo-cron"
 
-	app, cleanup, err := wire.InitializeCronApp()
+	cronApp, cleanup, err := wire.InitializeCron()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize dependencies: %v\n", err)
 		os.Exit(1)
@@ -70,35 +57,23 @@ func main() {
 
 	ctx := context.Background()
 
-	// 如果指定了任务名称，手动执行该任务
+	// 如果指定了任务名称，则运行指定的任务
 	if taskName != "" {
-		fmt.Printf("Start task: %s\n", taskName)
-
-		err := app.RunTask(ctx, taskName)
+		fmt.Fprintf(os.Stdout, "Starting single task: %s\n", taskName)
+		err := cronApp.RunTask(ctx, taskName)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error running task %s: %v\n", taskName, err)
 			os.Exit(1)
 		}
-
-		fmt.Printf("Task %s executed successfully.\n", taskName)
-		return
+		fmt.Fprintf(os.Stdout, "Task %s executed successfully.\n", taskName)
+		os.Exit(0)
 	}
 
-	// 正常启动定时任务调度器
-	if err := app.Start(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to start cron manager: %v\n", err)
+	cronSrv := &cronServer{cronApp: cronApp}
+	application.AddServer(cronSrv)
+
+	if err := application.Run(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "Application run failed: %v\n", err)
 		os.Exit(1)
-	}
-
-	log(ctx, "CRON", "Cron app started successfully")
-
-	gracefulShutdown(ctx, app)
-}
-
-func log(c context.Context, tag string, msg string, args ...interface{}) {
-	if common.IsDebug() {
-		logger.Info(c, tag, msg, args...)
-	} else {
-		logger.InfoWithAlarm(c, tag, msg, args...)
 	}
 }

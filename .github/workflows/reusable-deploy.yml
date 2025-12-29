@@ -1,0 +1,181 @@
+name: Reusable Deploy
+
+on:
+    workflow_call:
+        inputs:
+            app_name:
+                description: "Application binary name (e.g., 'godemo', 'godemo-cron')"
+                required: true
+                type: string
+            build_command:
+                description: "The 'make' command to build the application (e.g., 'build', 'build-cron')"
+                required: true
+                type: string
+            app_type:
+                description: "The type of application for the deploy script ('app' or 'cron')"
+                required: true
+                type: string
+            deploy_env:
+                description: "The deployment environment ('test' or 'release')"
+                required: true
+                type: string
+            target_path:
+                description: "The deployment target path on the remote server"
+                required: true
+                type: string
+            notify_title:
+                description: "Title for the Feishu deployment notification"
+                required: true
+                type: string
+            git_ref:
+                description: "Git ref (for test env notifications)"
+                required: false
+                type: string
+            commit_sha:
+                description: "Git commit SHA (for test env notifications)"
+                required: false
+                type: string
+            pr_title:
+                description: "PR title (for test env notifications)"
+                required: false
+                type: string
+            pr_url:
+                description: "PR URL (for test env notifications)"
+                required: false
+                type: string
+            release_json:
+                description: "Release event object as a JSON string (for release env notifications)"
+                required: false
+                type: string
+        secrets:
+            pat_token:
+                required: true
+            remote_host:
+                required: true
+            remote_user:
+                required: true
+            ssh_private_key:
+                required: true
+            remote_port:
+                required: true
+            feishu_webhook:
+                required: true
+
+permissions:
+    contents: read
+    packages: read
+
+jobs:
+    build-and-deploy:
+        name: Build and Deploy ${{ inputs.app_name }} to ${{ inputs.deploy_env }}
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+              with:
+                  token: ${{ secrets.pat_token }}
+
+            - name: Setup Go Environment
+              uses: ./.github/actions/setup
+              with:
+                  pat-token: ${{ secrets.pat_token }}
+
+            - name: Build application
+              run: |
+                  echo "当前部署环境: ${{ inputs.deploy_env }}"
+                  make ${{ inputs.build_command }}
+                  chmod +x bin/${{ inputs.app_name }}
+
+            - name: Transfer deployment package
+              uses: appleboy/scp-action@v0.1.6
+              with:
+                  host: ${{ secrets.remote_host }}
+                  username: ${{ secrets.remote_user }}
+                  key: ${{ secrets.ssh_private_key }}
+                  port: ${{ secrets.remote_port }}
+                  source: "bin/${{ inputs.app_name }},config,Makefile,go.mod,go.sum,scripts,resources"
+                  target: ${{ inputs.target_path }}
+
+            - name: Deploy application
+              uses: appleboy/ssh-action@v1.0.0
+              with:
+                  host: ${{ secrets.remote_host }}
+                  username: ${{ secrets.remote_user }}
+                  key: ${{ secrets.ssh_private_key }}
+                  port: ${{ secrets.remote_port }}
+                  script: |
+                      echo "=== ${{ inputs.deploy_env }} environment deployment start ==="
+                      cd ${{ inputs.target_path }}
+                      if [ -f "scripts/deploy.sh" ]; then
+                          chmod +x scripts/deploy.sh
+                          echo "execute deployment script [environment: ${{ inputs.deploy_env }}, app_type: ${{ inputs.app_type }}]..."
+                          ./scripts/deploy.sh ${{ inputs.deploy_env }} ${{ inputs.app_type }}
+                      else
+                          echo "❌ deploy.sh file does not exist"
+                          exit 1
+                      fi
+
+            - name: Send Test Feishu Notification
+              if: inputs.deploy_env == 'test'
+              run: |
+                  BRANCH_NAME=$(echo "${{ inputs.git_ref }}" | sed 's#refs/heads/##')
+                  ACTOR=${{ github.actor }}
+                  PR_URL="${{ inputs.pr_url || format('{0}/{1}/commit/{2}', github.server_url, github.repository, inputs.commit_sha) }}"
+                  PR_TITLE="${{ inputs.pr_title || '直接推送' }}"
+
+                  # 使用 jq 构建 JSON payload，自动处理转义
+                  PAYLOAD=$(jq -n \
+                    --arg title "${{ inputs.notify_title }}" \
+                    --arg branch "$BRANCH_NAME" \
+                    --arg actor "$ACTOR" \
+                    --arg url "$PR_URL" \
+                    --arg pr_title "$PR_TITLE" \
+                    '{
+                      "msg_type": "post",
+                      "content": {
+                        "post": {
+                          "zh_cn": {
+                            "title": $title,
+                            "content": [[
+                              { "tag": "text", "text": ("🔀 分支：" + $branch + "\n") },
+                              { "tag": "text", "text": ("🙋 操作人：" + $actor + "\n") },
+                              { "tag": "text", "text": ("🔗 PR 链接：" + $url + "\n") },
+                              { "tag": "text", "text": ("📝 标题：" + $pr_title + "\n") }
+                            ]]
+                          }
+                        }
+                      }
+                    }')
+
+                  curl -s -X POST "${FEISHU_WEBHOOK}" -H "Content-Type: application/json" -d "$PAYLOAD"
+              env:
+                  FEISHU_WEBHOOK: ${{ secrets.feishu_webhook }}
+
+            - name: Send Release Feishu Notification
+              if: inputs.deploy_env == 'release' && inputs.release_json != ''
+              run: |
+                  # 使用 jq 构建 JSON payload，一次性处理所有来自 release_json 的字段，避免 shell 转义问题
+                  PAYLOAD=$(echo '${{ inputs.release_json }}' | jq \
+                    --arg title "${{ inputs.notify_title }}" \
+                    --arg actor "${{ github.actor }}" \
+                    '{
+                      "msg_type": "post",
+                      "content": {
+                        "post": {
+                          "zh_cn": {
+                            "title": $title,
+                            "content": [[
+                              { "tag": "text", "text": ("🏷️ 版本标签：" + .tag_name + "\n") },
+                              { "tag": "text", "text": ("📝 版本标题：" + .name + "\n") },
+                              { "tag": "text", "text": ("🙋 发布人：" + $actor + "\n") },
+                              { "tag": "text", "text": ("🔗 Release 链接：" + .html_url + "\n") },
+                              { "tag": "text", "text": ("📋 发布说明：\n" + .body + "\n") }
+                            ]]
+                          }
+                        }
+                      }
+                    }')
+
+                  curl -s -X POST "${FEISHU_WEBHOOK}" -H "Content-Type: application/json" -d "$PAYLOAD"
+              env:
+                  FEISHU_WEBHOOK: ${{ secrets.feishu_webhook }}

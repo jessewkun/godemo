@@ -14,6 +14,8 @@ type User struct {
 	Password  string         `gorm:"size:128" json:"-"`               // 密码
 	Email     string         `gorm:"size:128" json:"email"`           // 邮箱
 	DeletedAt mysql.DateTime `gorm:"type:datetime" json:"deleted_at"` // 删除时间
+
+	IsAdmin bool `gorm:"-" json:"is_admin"`
 }
 
 func (m *User) BeforeCreate(tx *gorm.DB) (err error) {

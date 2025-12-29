@@ -7,7 +7,7 @@ import (
 	gocommonredis "github.com/jessewkun/gocommon/db/redis"
 )
 
-type MainCache struct{ *redis.Client }
+type MainCache struct{ redis.UniversalClient }
 
 type MainCacheName string
 

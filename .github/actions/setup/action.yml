@@ -1,0 +1,35 @@
+name: 'Setup Go Environment'
+description: 'Checks out code, sets up Go, configures private modules, and installs dependencies.'
+inputs:
+  pat-token:
+    description: 'PAT for cloning private repositories.'
+    required: true
+  go-version:
+    description: 'Go version to use.'
+    required: false
+    default: '1.24.11'
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Go environment
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    - name: Configure Git access to private repository
+      shell: bash
+      run: |
+        git config --global url."https://x-access-token:${{ inputs.pat-token }}@github.com/".insteadOf "https://github.com/"
+
+    - name: Configure Go private module
+      shell: bash
+      run: |
+        go env -w GOPRIVATE=github.com/jessewkun/*
+        go env -w GONOSUMDB=github.com/jessewkun/*
+        go env -w GOPROXY=https://goproxy.io,direct
+
+    - name: Download dependencies
+      shell: bash
+      run: |
+        go install github.com/google/wire/cmd/wire@latest
+        go mod download

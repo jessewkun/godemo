@@ -3,21 +3,40 @@ package cron
 import (
 	"context"
 
-	"github.com/jessewkun/gocommon/cron"
+	"godemo/config"
+
+	xcron "github.com/jessewkun/gocommon/cron"
+	"github.com/jessewkun/gocommon/logger"
 )
 
 // App is the cron application.
 type App struct {
-	Manager *cron.Manager
+	Manager *xcron.Manager
 }
 
-// NewApp creates a new cron App.
-// wire will inject all tasks into this constructor.
-func NewApp(manager *cron.Manager, task *DemoTask) *App {
-	// Register all tasks with the manager
-	manager.RegisterTask(task)
-	// If you have more tasks, add them here, and also in the NewApp signature.
-	// manager.RegisterTask(task2)
+func NewApp(
+	manager *xcron.Manager,
+	cfg *config.BusinessConfig,
+
+	// 如果有其他任务，请在这里添加
+	demoTask *DemoTask,
+) *App {
+	taskRegistry := map[string]xcron.Task{
+		// 新增一个任务时，请在这里把它加入到 map 中来把配置和具体的任务关联起来
+		"demo": demoTask,
+	}
+
+	// 遍历配置文件，将配置与任务实现结合，并注册到管理器中
+	for _, taskConfig := range cfg.Crons {
+		taskImpl, ok := taskRegistry[taskConfig.Key]
+		if !ok {
+			logger.Warn(context.Background(), "CRON", "Task %s not found in registry, skipping", taskConfig.Key)
+			continue
+		}
+
+		configurableTask := xcron.NewConfigurableTask(taskImpl, taskConfig)
+		manager.RegisterTask(configurableTask)
+	}
 
 	return &App{Manager: manager}
 }
@@ -28,8 +47,8 @@ func (a *App) Start(ctx context.Context) error {
 }
 
 // Stop stops the cron manager gracefully.
-func (a *App) Stop() {
-	a.Manager.Stop()
+func (a *App) Stop(ctx context.Context) {
+	a.Manager.Stop(ctx)
 }
 
 // RunTask manually runs a specific task by name

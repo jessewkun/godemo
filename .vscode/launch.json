@@ -8,9 +8,13 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/main.go",
             "cwd": "${workspaceFolder}",
-            "args": ["-c", "config/debug.toml"],
+            "args": [
+                "-c",
+                "config/debug.toml"
+            ],
             "showLog": true,
-            "console": "internalConsole"
+            "console": "internalConsole",
+            "output": "${workspaceFolder}/bin/debug_bin"
         },
         {
             "name": "Test",
@@ -19,7 +23,10 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/main.go",
             "cwd": "${workspaceFolder}",
-            "args": ["-c", "config/test.toml"],
+            "args": [
+                "-c",
+                "config/test.toml"
+            ],
             "showLog": true,
             "console": "integratedTerminal"
         },
@@ -30,7 +37,10 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/main.go",
             "cwd": "${workspaceFolder}",
-            "args": ["-c", "config/release.toml"],
+            "args": [
+                "-c",
+                "config/release.toml"
+            ],
             "showLog": true,
             "console": "integratedTerminal"
         }

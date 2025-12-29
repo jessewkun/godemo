@@ -5,16 +5,16 @@ import (
 	"fmt"
 
 	xconfig "github.com/jessewkun/gocommon/config"
+	xcron "github.com/jessewkun/gocommon/cron"
 	"github.com/jessewkun/gocommon/middleware"
 	"github.com/spf13/viper"
 )
 
 // BusinessConfig 业务配置
 type BusinessConfig struct {
-	Token               Token                 `mapstructure:"token" json:"token"`                               // 登录态 token 加解密配置
-	PersonalInformation PersonalInformation   `mapstructure:"personal_information" json:"personal_information"` // 个人信息加解密配置
-	Cros                middleware.CrosConfig `mapstructure:"cros" json:"cros"`                                 // 跨域配置
-	Oss                 OssConfig             `mapstructure:"oss" json:"oss"`                                   // oss 配置
+	Cros  middleware.CrosConfig `mapstructure:"cros" json:"cros"` // 跨域配置
+	Oss   OssConfig             `mapstructure:"oss" json:"oss"`   // oss 配置
+	Crons []xcron.TaskConfig    `mapstructure:"crons" json:"crons"`
 }
 
 // Reload 重新加载 BusinessConfig 配置.
@@ -27,25 +27,16 @@ func (c *BusinessConfig) Reload(v *viper.Viper) {
 	fmt.Printf("business config reload success, config: %+v\n", c)
 }
 
-// Token 登录态 token 加解密配置
-type Token struct {
-	Key string `mapstructure:"key" json:"key"` // 加密密钥
-	Iv  string `mapstructure:"iv" json:"iv"`   // 加密向量
-}
-
-// PersonalInformation 个人信息加解密配置
-type PersonalInformation struct {
-	Key string `mapstructure:"key" json:"key"` // 加密密钥
-	Iv  string `mapstructure:"iv" json:"iv"`   // 加密向量
-}
-
 // OssConfig oss 配置
 type OssConfig struct {
 	Bucket         string `mapstructure:"bucket" json:"bucket"`
 	PublicEndpoint string `mapstructure:"public_endpoint" json:"public_endpoint"` // 公网访问地址
 	Endpoint       string `mapstructure:"endpoint" json:"endpoint"`               // 内网访问地址，上传最走这个
+	RegionEndpoint string `mapstructure:"region_endpoint" json:"region_endpoint"` // 区域访问地址
 	AccessKey      string `mapstructure:"access_key" json:"access_key"`
 	SecretKey      string `mapstructure:"secret_key" json:"secret_key"`
+	RoleArn        string `mapstructure:"role_arn" json:"role_arn"`
+	Region         string `mapstructure:"region" json:"region"`
 }
 
 // BusinessCfg 业务配置，注册为全局变量，方便使用
@@ -53,4 +44,26 @@ var BusinessCfg = &BusinessConfig{}
 
 func init() {
 	xconfig.Register("business", BusinessCfg)
+}
+
+var (
+	version   = "dev"
+	commit    = "none"
+	buildTime = "unknown"
+)
+
+// BuildInfo 构建信息
+type BuildInfo struct {
+	Version   string
+	Commit    string
+	BuildTime string
+}
+
+// GetBuildInfo 获取构建信息
+func GetBuildInfo() BuildInfo {
+	return BuildInfo{
+		Version:   version,
+		Commit:    commit,
+		BuildTime: buildTime,
+	}
 }

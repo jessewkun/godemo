@@ -8,43 +8,15 @@
 
 -   基于 gin 的 HTTP 服务
 -   使用 wire 进行依赖注入
--   集成 Swagger 文档
--   支持 Redis 缓存
--   支持 MySQL 数据库（使用 GORM）
--   支持 elasticsearch
--   支持 mongodb
--   支持 http client
--   支持调试与动态开关
 -   配置管理（使用 Viper）
 -   日志管理
 -   优雅启动和关闭
-
-## 项目结构
-
-```
-.
-├── cmd/            # 主程序入口
-├── config/         # 配置文件
-│   ├── config.toml   # 项目启动实际使用的配置文件，请勿直接修改，使用make命令自动生成对应环境的该文件
-│   ├── debug.toml    # 开发环境配置文件
-│   ├── release.toml  # 生产环境配置文件
-│   ├── test.toml     # 测试环境配置文件
-├── internal/       # 业务逻辑实现
-│   ├── handler/    # HTTP 处理器
-│   ├── middleware/ # 业务中间件，通用的中间件在 gocommon 中
-│   ├── model/      # 数据模型
-│   ├── repository/ # 数据访问层
-│   ├── service/    # 业务逻辑层
-│   └── wire/       # 依赖注入配置
-├── bin/           # 编译输出目录
-└── Makefile       # 构建脚本
-```
 
 ## 快速开始
 
 ### 环境要求
 
--   Go 1.23.10 或更高版本
+-   Go 1.24.11 或更高版本
 -   MySQL
 -   Redis
 
@@ -56,52 +28,39 @@ make mod
 
 ### 构建项目
 
-项目支持三种构建模式：
-
-1. 开发环境构建：
-
 ```bash
-# 自动进行历史产物的清理，配置文件的生成，wire的注入
-make debug
-```
+# 克隆项目
+git clone <repository-url>
+cd godemo
 
-2. 测试环境构建：
+make help              # 查看所有可用命令
 
-```bash
-# 自动进行历史产物的清理，配置文件的生成，wire的注入
-make test
-```
+# 主应用相关
+make build             # 清理并构建主应用
+make run               # 运行主应用（默认 debug 环境）
+make stop              # 停止主应用
+make status            # 查看主应用状态
 
-3. 生产环境构建：
+# Cron定时任务相关
+make build-cron        # 清理并构建cron应用
+make run-cron          # 运行cron调度器（默认 debug 环境）
+make run-cron-task TASK=<task_name>  # 手动执行指定任务
+make stop-cron         # 停止cron应用
+make status-cron       # 查看cron应用状态
 
-```bash
-# 自动进行历史产物的清理，配置文件的生成，wire的注入
-make release
-```
+# 开发工具
+make clean             # 清理构建文件
+make test              # 运行测试
+make wire              # 生成依赖注入代码
+make mod               # 整理 Go 模块
 
-### 运行服务
-
-```bash
-make run
-```
-
-### 停止服务
-
-```bash
-make stop
-```
-
-### 生成 Swagger 文档
-
-```bash
-make swag
-```
-
-### 生成依赖注入代码
-
-```bash
-# 手动测试注入代码的生成
-make wire
+# 指定环境运行
+make run ENV=debug     # 主应用开发环境，使用 config/debug.toml
+make run ENV=test      # 主应用测试环境，使用 config/test.toml
+make run ENV=release   # 主应用生产环境，使用 config/release.toml
+make run-cron ENV=debug    # cron开发环境，使用 config/debug.toml
+make run-cron ENV=test     # cron测试环境，使用 config/test.toml
+make run-cron ENV=release  # cron生产环境，使用 config/release.toml
 ```
 
 ## 配置说明
@@ -121,19 +80,14 @@ make wire
     - 在 `internal/router` 中定义路由
     - 在 `internal/dto` 中定义接口协议
     - 在 `internal/handler` 中创建处理器
+    - 在 `internal/handler/provider.gp` 中添加新增的 handler
     - 在 `internal/service` 中实现业务逻辑
+    - 在 `internal/service/provider.go` 中添加新增的 vervice
     - 在 `internal/repository` 中实现数据访问
+    - 在 `internal/repository/provider.go` 中添加新增的 repository
     - 在 `internal/model` 中实现数据模型
     - 在 `internal/wire` 中注册依赖
     - 在 `internal/middleware` 中创建业务中间件
-
-## 测试
-
-运行测试并生成覆盖率报告：
-
-```bash
-make cover
-```
 
 ## 注意事项
 

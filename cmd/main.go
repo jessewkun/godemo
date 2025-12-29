@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
+	"godemo/internal/app"
 	"godemo/internal/dto"
 	"godemo/internal/router"
 	"godemo/internal/wire"
@@ -17,9 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
-	"github.com/jessewkun/gocommon/common"
-	"github.com/jessewkun/gocommon/config"
-	"github.com/jessewkun/gocommon/logger"
 
 	_ "godemo/config"
 
@@ -27,99 +23,80 @@ import (
 	_ "github.com/jessewkun/gocommon/http"
 )
 
-var (
-	configFile string
-	baseConfig *config.BaseConfig
-	apis       *wire.APIs // 添加APIs引用
-)
-
-func init() {
-	flag.StringVar(&configFile, "c", "config.yml", "config file path")
-	flag.Parse()
+// apiServer wraps the HTTP server and its dependencies to implement the app.Server interface.
+type apiServer struct {
+	srv  *http.Server
+	apis *wire.APIs
 }
 
-func loadConfig() error {
-	var err error
-	baseConfig, err = config.Init(configFile)
-	if err != nil {
-		return fmt.Errorf("load config file %s error: %w", configFile, err)
+// Start begins listening for HTTP requests.
+func (s *apiServer) Start(ctx context.Context) error {
+	if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		return fmt.Errorf("server startup failed: %w", err)
 	}
 	return nil
 }
 
-func startServer() *http.Server {
-	gin.SetMode(baseConfig.Mode)
-	r := gin.Default()
+// Stop gracefully shuts down the HTTP server and closes associated resources.
+func (s *apiServer) Stop(ctx context.Context) error {
+	if err := s.srv.Shutdown(ctx); err != nil {
+		return fmt.Errorf("server shutdown failed: %w", err)
+	}
+	return nil
+}
 
-	// 注册自定义验证函数
+// newAPIServer encapsulates the creation and configuration of the HTTP server.
+func newAPIServer(opts *app.Options, apis *wire.APIs) (*apiServer, error) {
+	gin.SetMode(opts.BaseConfig.Mode)
+	r := gin.New()
+
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		dto.RegisterValidator(v)
 	}
 
-	// 使用 wire 初始化依赖
-	var err error
-	apis, err = wire.InitializeAPI()
-	if err != nil {
-		log(context.Background(), "MAIN", "Failed to initialize APIs: %v", err)
-		os.Exit(1)
-	}
-
 	srv := &http.Server{
-		Addr:         baseConfig.Port,
+		Addr:         opts.BaseConfig.Port,
 		Handler:      router.InitRouter(r, apis),
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  5 * 60 * time.Second,
+		WriteTimeout: 5 * 60 * time.Second,
+		IdleTimeout:  300 * time.Second,
 	}
 
-	fmt.Printf("Starting server on %s\n", baseConfig.Port)
-
-	go func() {
-		log(context.Background(), "MAIN", "Starting server on %s", baseConfig.Port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log(context.Background(), "MAIN", "Server startup failed: %v", err)
-			os.Exit(1)
-		}
-	}()
-
-	return srv
+	return &apiServer{
+		srv:  srv,
+		apis: apis,
+	}, nil
 }
 
-// gracefulExit 优雅退出
-func gracefulExit(srv *http.Server) {
-	exit := make(chan os.Signal, 1)
-	signal.Notify(exit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-
-	sig := <-exit
-	log(context.Background(), "MAIN", "Received signal: %v. Shutting down server...", sig)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(ctx); err != nil {
-		log(context.Background(), "MAIN", "Server shutdown failed: %v", err)
-		os.Exit(1)
-	}
-
-	log(context.Background(), "MAIN", "Server gracefully shutdown")
-	fmt.Println("Server gracefully shutdown")
-}
-
+// 主函数
+// 这个函数是整个应用的入口，它负责创建应用程序实例，初始化API服务器，并启动应用程序。
+// 这里的错误直接输出，没有进入日志，是因为可以在 github action 中看到错误或者手动运行时看到错误，方便排查问题。
 func main() {
-	if err := loadConfig(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
+	var configFile string
+	flag.StringVar(&configFile, "c", "config.yml", "config file path")
+	flag.Parse()
+
+	application, err := app.NewApp("godemo-api", configFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create app: %v\n", err)
 		os.Exit(1)
 	}
 
-	srv := startServer()
+	ctx := context.Background()
+	apis, err := wire.InitializeAPIs()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to initialize APIs: %v\n", err)
+		os.Exit(1)
+	}
 
-	gracefulExit(srv)
-}
-
-func log(c context.Context, tag string, msg string, args ...interface{}) {
-	if common.IsDebug() {
-		logger.Info(c, tag, msg, args...)
-	} else {
-		logger.InfoWithAlarm(c, tag, msg, args...)
+	apiSrv, err := newAPIServer(application.Options(), apis)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create API server: %v\n", err)
+		os.Exit(1)
+	}
+	application.AddServer(apiSrv)
+	if err := application.Run(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "Application run failed: %v\n", err)
+		os.Exit(1)
 	}
 }

@@ -3,9 +3,7 @@ name: PR Check
 on:
     pull_request:
         branches: [main]
-
-env:
-    GO_VERSION: "1.23.10"
+    workflow_dispatch:
 
 permissions:
     contents: read
@@ -16,40 +14,24 @@ jobs:
         name: 代码检查
         runs-on: ubuntu-latest
         steps:
-            - name: 检出代码
+            - name: Checkout code
               uses: actions/checkout@v3
               with:
                   token: ${{ secrets.PAT_TOKEN }}
 
-            - name: 设置 Go 环境
-              uses: actions/setup-go@v4
+            - name: Setup Go Environment
+              uses: ./.github/actions/setup
               with:
-                  go-version: ${{ env.GO_VERSION }}
+                  pat-token: ${{ secrets.PAT_TOKEN }}
 
-            - name: 配置 Git 访问私有仓库
+            - name: 生成依赖注入代码
               run: |
-                  git config --global url."https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/".insteadOf "https://github.com/"
-
-            - name: 配置 Go 私有模块
-              run: |
-                  go env -w GOPROXY=https://goproxy.io,direct
-
-            - name: 下载依赖
-              run: |
-                  go install github.com/google/wire/cmd/wire@latest
-                  make mod
+                  make wire
 
             - name: 编译测试
               run: |
                   echo "开始编译测试..."
                   make build
-
-            - name: 代码格式检查
-              run: |
-                  echo "检查代码格式..."
-                  go fmt ./...
-                  echo "检查代码问题..."
-                  go vet ./...
 
             - name: 运行测试
               run: |

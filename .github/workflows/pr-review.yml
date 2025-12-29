@@ -1,0 +1,121 @@
+name: PR-Review-Agent
+on:
+  pull_request:
+    types: [ready_for_review, review_requested]
+    branches:
+      - main
+      - 'feature/codebase-**'
+  issue_comment:
+    types: [created, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+jobs:
+  pr_review_agent_job:
+    if: |
+      github.event.sender.type != 'Bot' &&
+      (
+        github.event_name == 'pull_request' ||
+        (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
+        github.event_name == 'pull_request_review_comment'
+      ) &&
+      !(
+        github.event_name == 'pull_request' &&
+        (
+          startsWith(github.event.pull_request.title, 'chore:') ||
+          startsWith(github.event.pull_request.title, 'doc:') ||
+          startsWith(github.event.pull_request.title, 'docs:')
+        )
+      ) &&
+      !(
+        github.event_name == 'pull_request' &&
+        startsWith(github.event.pull_request.head.ref, 'feature/codebase-') &&
+        github.event.pull_request.base.ref == 'dev'
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
+      actions: read
+    name: Run pr agent on every pull request, respond to user comments
+    steps:
+      - name: PR Agent action step
+        id: pragent
+        uses: qodo-ai/pr-agent@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # OpenRouter 配置
+          OPENROUTER.KEY: ${{ secrets.OPENROUTER_KEY }}
+          # 可选：自定义 API base
+          OPENROUTER.API_BASE: "https://openrouter.ai/api/v1"
+          # 文件忽略配置（Go 项目 - 跳过自动生成文件和数据库迁移脚本）
+          IGNORE.GLOB: "['internal/wire/wire_gen.go', '*.pb.go', 'vendor/**', '*.gen.go', 'db/migrations/**']"
+          # 模型配置
+          config.model: "google/gemini-3-flash-preview"
+          config.fallback_models: '["openrouter/openai/gpt-5.1"]'
+          config.custom_model_max_tokens: "20000"
+          # 工具配置
+          github_action_config.auto_review: "true"
+          github_action_config.auto_describe: "true"
+          github_action_config.auto_improve: "true"
+          github_action_config.pr_actions: '["opened", "reopened", "ready_for_review", "review_requested"]'
+
+          # Go 后端项目配置
+          pr_code_suggestions.num_code_suggestions: "10" #每个代码块生成最多建议
+          pr_code_suggestions.suggestions_score_threshold: "8" #设置建议的重要性评分阈值，过滤低质量建议
+          pr_code_suggestions.dual_publishing_score_threshold: "8" #启用双重发布模式，高评分建议同时以表格和可提交代码形式显示
+          pr_code_suggestions.commitable_code_suggestions: "true" #启用可提交的代码建议功能
+          pr_code_suggestions.num_code_suggestions_per_chunk: "5" #每个代码块生成最多 5 个建议
+          # Improve: 具体代码建议（内联评论）
+          pr_code_suggestions.extra_instructions: >
+            提供具体、可操作的 Go 代码改进建议，并给出清晰的解释：
+
+            重点关注：
+            - Go 最佳实践：错误处理（避免 panic，正确返回 error）、goroutine 管理（防止泄漏）、context 使用（超时和取消传播）
+            - 并发安全：互斥锁使用、channel 操作、数据竞争检测
+            - 项目架构：分层架构遵守（Router → Handler → Service → Repository）、单一职责原则
+            - Wire 依赖注入：正确使用 wire.Build、避免循环依赖、修改 wire.go 后需运行 make wire
+            - GORM 使用：SQL 注入防护、事务处理、预加载优化、索引使用
+            - 安全问题：SQL 注入、XSS、认证授权漏洞、敏感信息泄露
+            - 性能优化：数据库 N+1 问题、缓存使用、goroutine 池、内存泄漏
+            - 代码质量：DRY（避免重复代码）、KISS（保持简单）、错误边界处理
+            - 测试覆盖：单元测试、边界情况、错误路径
+
+            避免建议：
+            - 添加注释（除非代码逻辑确实不清晰）
+            - 格式化变更（已由 gofmt/goimports 处理）
+            - 无技术价值的风格偏好
+
+          # 审查配置
+          # Review: 高层次分析（保持汇总评论）
+          pr_reviewer.extra_instructions: >
+            提供简洁的高层次分析，重点关注：
+
+            - 整体代码质量和架构评估：
+              * 是否遵守分层架构（Router → Handler → Service → Repository）
+              * 是否符合 DRY（Don't Repeat Yourself）和 KISS（Keep It Simple）原则
+              * 单一职责原则的遵守情况
+
+            - 安全漏洞和风险总结：
+              * SQL 注入、XSS、CSRF 等 OWASP Top 10 漏洞
+              * 认证和授权机制的正确性
+              * 敏感信息（密码、token、密钥）的处理
+
+            - 性能瓶颈和优化机会：
+              * 数据库查询优化（N+1 问题、索引使用）
+              * goroutine 泄漏和并发控制
+              * 缓存策略和 Redis 使用
+              * SSE 长连接管理（参考比赛系统的 DistributedManager）
+
+            - 测试覆盖缺口和边界情况：
+              * 错误路径测试
+              * 并发场景测试
+              * 边界值和异常输入
+
+            - Go 最佳实践和项目规范：
+              * 错误处理（避免 panic、正确返回 error）
+              * context 传播和超时控制
+              * Wire 依赖注入的正确使用（如修改 wire.go 需提醒运行 make wire）
+              * GORM 最佳实践
+
+            保持总结简洁 - 详细的逐行建议将以内联评论形式提供。

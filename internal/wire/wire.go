@@ -5,8 +5,6 @@ package wire
 
 import (
 	"godemo/internal/handler"
-	"godemo/internal/repository"
-	"godemo/internal/service"
 	"godemo/internal/wire/provider"
 
 	"github.com/google/wire"
@@ -16,23 +14,20 @@ type APIs struct {
 	UserHandler *handler.UserHandler
 }
 
-// InitializeAPI 完整依赖注入
-func InitializeAPI() (*APIs, error) {
+func InitializeAPIs() (*APIs, error) {
 	panic(wire.Build(
-		// DB
-		wire.Value(provider.MainDBNameValue),
+		// Infrastructure providers
 		provider.ProvideMainDB,
-		// Cache
-		wire.Value(provider.MainCacheNameValue),
+		wire.Value(provider.MainDBNameValue),
 		provider.ProvideMainCache,
-		// Repository
-		repository.NewUserRepository,
-		// Service
-		service.NewUserService,
-		// Handler
-		handler.NewUserHandler,
+		wire.Value(provider.MainCacheNameValue),
 
-		// APIs
-		wire.Struct(new(APIs), "UserHandler"),
+		// Aggregated provider sets
+		RepositorySet,
+		ServiceSet,
+		HandlerSet,
+
+		// The final struct to build
+		wire.Struct(new(APIs), "*"),
 	))
 }

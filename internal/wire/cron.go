@@ -4,31 +4,39 @@
 package wire
 
 import (
+	"godemo/config"
 	"godemo/internal/cron"
-	"godemo/internal/repository"
 	"godemo/internal/wire/provider"
 
+	repository "godemo/internal/repository"
+
+	xcron "github.com/jessewkun/gocommon/cron"
+
 	"github.com/google/wire"
-	commonCron "github.com/jessewkun/gocommon/cron"
 )
 
-// InitializeCronApp initializes the cron application.
-func InitializeCronApp() (*cron.App, func(), error) {
-	panic(wire.Build(
-		// DB
-		wire.Value(provider.MainDBNameValue),
+// providerBusinessConfig a provider for the business config.
+func providerBusinessConfig() *config.BusinessConfig {
+	return config.BusinessCfg
+}
+
+// InitializeCron initializes the cron application.
+func InitializeCron() (*cron.App, func(), error) {
+	wire.Build(
+		// 基础服务提供者
+		providerBusinessConfig,
+
+		// Infrastructure providers
 		provider.ProvideMainDB,
+		wire.Value(provider.MainDBNameValue),
 
-		// Repository
-		repository.NewUserRepository,
+		// Cron 框架和所有任务的构造函数
+		xcron.NewManager,
+		cron.ProviderSet,
 
-		// Cron Manager
-		commonCron.NewManager,
-
-		// Tasks
-		cron.NewDemoTask,
-
-		// App
+		repository.ProviderSet,
+		// 最终的应用组装者
 		cron.NewApp,
-	))
+	)
+	return &cron.App{}, nil, nil
 }

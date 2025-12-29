@@ -3,29 +3,22 @@ package cron
 
 import (
 	"context"
-	"godemo/internal/repository"
-	"time"
 
-	"github.com/jessewkun/gocommon/cron"
+	repo "godemo/internal/repository"
+
+	xcron "github.com/jessewkun/gocommon/cron"
 )
 
-// DemoTask
+// DemoTask holds dependencies for the task.
 type DemoTask struct {
-	cron.BaseTask
-	userRepo repository.UserRepository
+	xcron.BaseTask
+	repo repo.UserRepository
 }
 
-// NewDemoTask
-func NewDemoTask(userRepo repository.UserRepository) *DemoTask {
+func NewDemoTask(repo repo.UserRepository) *DemoTask {
 	return &DemoTask{
-		BaseTask: cron.BaseTask{
-			TaskName:    "demo_task",
-			TaskDesc:    "demo",
-			TaskEnabled: true,
-			TaskSpec:    "0 * * * * *",    // 每分钟执行一次
-			TaskTimeout: 55 * time.Second, // 55秒超时，提前退出
-		},
-		userRepo: userRepo,
+		BaseTask: xcron.BaseTask{},
+		repo:     repo,
 	}
 }
 
@@ -38,7 +31,7 @@ func (t *DemoTask) Run(ctx context.Context) error {
 	return nil
 }
 
-// AfterRun 任务执行后的准备工作
+// AfterRun 任务执行后的清理工作
 func (t *DemoTask) AfterRun(ctx context.Context) error {
 	return nil
 }
