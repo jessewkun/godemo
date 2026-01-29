@@ -11,7 +11,7 @@ require (
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/wire v0.6.0
-	github.com/jessewkun/gocommon v0.0.0-20251229052018-3e06ec4958d8
+	github.com/jessewkun/gocommon v0.0.0-20260129023630-8066fe4ddab4
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	gorm.io/gorm v1.30.0
